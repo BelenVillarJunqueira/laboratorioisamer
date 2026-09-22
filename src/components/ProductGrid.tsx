@@ -49,7 +49,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
   // Derive available categories dynamically or from default list
-  const categories = ['Todos', 'Especial Mamá', 'Cremas', 'Serums', 'Ojos', 'Limpieza', 'Packs', 'Aceites', 'Capilar'];
+  const categories = ['Todos', 'Especial Mamá', 'Cremas', 'Serums', 'Ojos', 'Limpieza', 'Packs', 'Geles' , 'Aceites', 'Capilar'];
 
   const filteredProducts = products.filter(product => {
     // Brand match
