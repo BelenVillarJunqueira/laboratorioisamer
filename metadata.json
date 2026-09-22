@@ -1,0 +1,6 @@
+{
+  "name": "LUMÉA Cosmética Profesional",
+  "description": "LUMÉA - Cuidado profesional y de alta tecnología. Crema hidratante, serum revitalizante, contorno de ojos, gel facial y agua micelar. Especial Día de la Madre con envíos a todo el país.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
