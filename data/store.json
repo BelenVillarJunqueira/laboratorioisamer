@@ -654,6 +654,24 @@
   ],
   "pixelLogs": [
     {
+      "id": "pix-1790108932312",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T20:28:52.312Z",
+      "data": {
+        "url": "http://localhost:3000/",
+        "referrer": ""
+      }
+    },
+    {
+      "id": "pix-1790108499135",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T20:21:39.135Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
       "id": "pix-1790108164474",
       "eventName": "PageView",
       "timestamp": "2026-09-22T20:16:04.474Z",
@@ -2479,24 +2497,6 @@
       "id": "pix-1789765475814",
       "eventName": "PageView",
       "timestamp": "2026-09-18T21:04:35.814Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789765473810",
-      "eventName": "PageView",
-      "timestamp": "2026-09-18T21:04:33.810Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789765471601",
-      "eventName": "PageView",
-      "timestamp": "2026-09-18T21:04:31.601Z",
       "data": {
         "url": "http://localhost:3000/",
         "referrer": "http://localhost:3000/"

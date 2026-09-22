@@ -41,7 +41,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     { id: 'Todas', label: 'Todas las Marcas' },
     { id: 'H2Derm', label: 'H2Derm', tag: 'Principal' },
     { id: 'Mimitos', label: 'Mimitos', tag: 'Niños' },
-    { id: 'SoftCare', label: 'SoftCare' },
+    { id: 'SoftCare', label: 'SoftCare', tag: 'Premium' },
     { id: 'Le Salon', label: 'Le Salón', tag: 'Barberías' }
   ];
 
