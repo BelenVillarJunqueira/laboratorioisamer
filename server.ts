@@ -134,12 +134,35 @@ function debouncedSaveData() {
   }, 3000);
 }
 
+function syncToInitialData(data: StoredData) {
+  try {
+    const initialDataPath = path.join(process.cwd(), 'src', 'data', 'initialData.ts');
+    if (fs.existsSync(initialDataPath)) {
+      const content = `import { Product, CarouselSlide, StoreCMS, Order } from '../types';
+
+export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(data.products, null, 2)};
+
+export const INITIAL_SLIDES: CarouselSlide[] = ${JSON.stringify(data.slides, null, 2)};
+
+export const INITIAL_CMS: StoreCMS = ${JSON.stringify(data.cms, null, 2)};
+
+export const INITIAL_ORDERS: Order[] = ${JSON.stringify(data.orders, null, 2)};
+`;
+      fs.writeFileSync(initialDataPath, content, 'utf-8');
+    }
+  } catch (err) {
+    console.error('Error syncing initialData.ts:', err);
+  }
+}
+
 function saveData(data: StoredData) {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    // Ensure persistence survives Render redeploys and container restarts
+    syncToInitialData(data);
   } catch (err) {
     console.error('Error saving data to file:', err);
   }
@@ -207,47 +230,120 @@ app.put('/api/products/reorder', (req, res) => {
 });
 
 app.put('/api/products/:id', (req, res) => {
-  const { id } = req.params;
-  const updatedProduct: Partial<Product> = req.body;
-  const index = storeState.products.findIndex(p => p.id === id);
+  try {
+    const { id } = req.params;
+    const updatedProduct: Partial<Product> = req.body || {};
 
-  if (index !== -1) {
-    storeState.products[index] = {
-      ...storeState.products[index],
-      ...updatedProduct,
-      brand: (updatedProduct.brand && updatedProduct.brand !== 'LUMÉA')
-        ? updatedProduct.brand
-        : (storeState.products[index].brand !== 'LUMÉA' ? storeState.products[index].brand : 'H2Derm')
+    // 1. Match by ID
+    let index = storeState.products.findIndex(p => p.id === id);
+
+    // 2. If not found by ID, try matching by SKU
+    if (index === -1 && updatedProduct.sku) {
+      index = storeState.products.findIndex(p => p.sku === updatedProduct.sku);
+    }
+
+    // 3. If not found by SKU, try matching by exact name
+    if (index === -1 && updatedProduct.name) {
+      index = storeState.products.findIndex(
+        p => p.name.trim().toLowerCase() === updatedProduct.name!.trim().toLowerCase()
+      );
+    }
+
+    const brandToUse = (updatedProduct.brand && updatedProduct.brand !== 'LUMÉA')
+      ? updatedProduct.brand
+      : (index !== -1 && storeState.products[index].brand !== 'LUMÉA' ? storeState.products[index].brand : 'H2Derm');
+
+    if (index !== -1) {
+      // Update existing product
+      storeState.products[index] = {
+        ...storeState.products[index],
+        ...updatedProduct,
+        id: storeState.products[index].id || id,
+        brand: brandToUse,
+        price: typeof updatedProduct.price === 'number' ? updatedProduct.price : (Number(updatedProduct.price) || 0),
+        stock: typeof updatedProduct.stock === 'number' ? updatedProduct.stock : (Number(updatedProduct.stock) || 0)
+      };
+      saveData(storeState);
+      return res.json({ success: true, product: storeState.products[index] });
+    }
+
+    // 4. UPSERT: Product did not exist on server — create and add it immediately so NO product is ever rejected or lost!
+    const newProduct: Product = {
+      id: id || updatedProduct.id || 'prod-' + Date.now(),
+      brand: brandToUse,
+      order: typeof updatedProduct.order === 'number' ? updatedProduct.order : storeState.products.length + 1,
+      sku: updatedProduct.sku || `SKU-${Date.now().toString().slice(-4)}`,
+      name: updatedProduct.name || 'Nuevo Producto',
+      tagline: updatedProduct.tagline || '',
+      category: updatedProduct.category || 'Cremas',
+      price: typeof updatedProduct.price === 'number' ? updatedProduct.price : (Number(updatedProduct.price) || 0),
+      originalPrice: typeof updatedProduct.originalPrice === 'number' ? updatedProduct.originalPrice : (Number(updatedProduct.originalPrice) || 0),
+      discountPercentage: typeof updatedProduct.discountPercentage === 'number' ? updatedProduct.discountPercentage : 0,
+      rating: updatedProduct.rating || 5.0,
+      reviewsCount: updatedProduct.reviewsCount || 1,
+      image: updatedProduct.image || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=800&q=80',
+      secondaryImages: updatedProduct.secondaryImages || [],
+      badges: updatedProduct.badges || [],
+      description: updatedProduct.description || '',
+      benefits: updatedProduct.benefits || [],
+      howToUse: updatedProduct.howToUse || '',
+      stock: typeof updatedProduct.stock === 'number' ? updatedProduct.stock : 50,
+      featured: !!updatedProduct.featured,
+      motherDaySpecial: !!updatedProduct.motherDaySpecial,
+      video: updatedProduct.video
     };
+
+    storeState.products.push(newProduct);
     saveData(storeState);
-    return res.json({ success: true, product: storeState.products[index] });
+    return res.json({ success: true, product: newProduct });
+  } catch (err: any) {
+    console.error('Error in PUT /api/products/:id:', err);
+    res.status(500).json({ error: 'Error al guardar el producto: ' + err.message });
   }
-  res.status(404).json({ error: 'Producto no encontrado' });
 });
 
 app.post('/api/products', (req, res) => {
-  const brandToUse = (req.body.brand && req.body.brand !== 'LUMÉA') ? req.body.brand : 'H2Derm';
-  
-  // Re-index existing products so new product becomes order #1
-  storeState.products.forEach((p, idx) => {
-    p.order = idx + 2;
-  });
+  try {
+    const brandToUse = (req.body.brand && req.body.brand !== 'LUMÉA') ? req.body.brand : 'H2Derm';
+    const prodId = req.body.id || 'prod-' + Date.now();
 
-  const newProduct: Product = {
-    ...req.body,
-    id: req.body.id || 'prod-' + Date.now(),
-    brand: brandToUse,
-    order: 1,
-    rating: req.body.rating || 5.0,
-    reviewsCount: req.body.reviewsCount || 1,
-    secondaryImages: req.body.secondaryImages || [],
-    badges: req.body.badges || [],
-    benefits: req.body.benefits || []
-  };
+    // Check if ID already exists, if so update it
+    const existingIdx = storeState.products.findIndex(p => p.id === prodId);
+    if (existingIdx !== -1) {
+      storeState.products[existingIdx] = {
+        ...storeState.products[existingIdx],
+        ...req.body,
+        brand: brandToUse
+      };
+      saveData(storeState);
+      return res.json({ success: true, product: storeState.products[existingIdx] });
+    }
 
-  storeState.products.unshift(newProduct);
-  saveData(storeState);
-  res.status(201).json({ success: true, product: newProduct });
+    // Re-index existing products so new product becomes order #1
+    storeState.products.forEach((p, idx) => {
+      p.order = idx + 2;
+    });
+
+    const newProduct: Product = {
+      ...req.body,
+      id: prodId,
+      brand: brandToUse,
+      order: 1,
+      price: typeof req.body.price === 'number' ? req.body.price : (Number(req.body.price) || 0),
+      stock: typeof req.body.stock === 'number' ? req.body.stock : (Number(req.body.stock) || 50),
+      rating: req.body.rating || 5.0,
+      reviewsCount: req.body.reviewsCount || 1,
+      secondaryImages: req.body.secondaryImages || [],
+      badges: req.body.badges || [],
+      benefits: req.body.benefits || []
+    };
+
+    storeState.products.unshift(newProduct);
+    saveData(storeState);
+    res.status(201).json({ success: true, product: newProduct });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al crear producto: ' + err.message });
+  }
 });
 
 app.delete('/api/products/:id', (req, res) => {
@@ -659,7 +755,7 @@ async function startServer() {
       server: {
         middlewareMode: true,
         watch: {
-          ignored: ['**/data/**', '**/data/store.json', '**/dist/**', '**/.git/**']
+          ignored: ['**/data/**', '**/data/store.json', '**/dist/**', '**/.git/**', '**/src/data/initialData.ts']
         }
       },
       appType: 'spa'

@@ -20,7 +20,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates)
     });
-    if (!res.ok) throw new Error('Error al actualizar el producto');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${res.status}: no se pudo actualizar el producto`);
+    }
     const data = await res.json();
     return data.product;
   },
@@ -31,7 +34,10 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(product)
     });
-    if (!res.ok) throw new Error('Error al crear el producto');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Error ${res.status}: no se pudo crear el producto`);
+    }
     const data = await res.json();
     return data.product;
   },

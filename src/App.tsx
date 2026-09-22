@@ -56,10 +56,36 @@ export default function App() {
     }
   };
 
-  // Initial load from backend API
+  // Initial load from backend API with localStorage fail-safe
   useEffect(() => {
     // Fetch products
-    api.getProducts().then(setProducts).catch(() => {});
+    api.getProducts().then(serverProds => {
+      try {
+        const cached = localStorage.getItem('lumea_products_cache');
+        if (cached) {
+          const parsedCache: Product[] = JSON.parse(cached);
+          if (Array.isArray(parsedCache) && parsedCache.length > serverProds.length) {
+            // Local storage has more recent products that weren't on server yet: use them and sync to server
+            setProducts(parsedCache);
+            api.updateAllProducts(parsedCache).catch(() => {});
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore JSON parse error
+      }
+      setProducts(serverProds);
+    }).catch(() => {
+      try {
+        const cached = localStorage.getItem('lumea_products_cache');
+        if (cached) {
+          const parsedCache: Product[] = JSON.parse(cached);
+          if (Array.isArray(parsedCache) && parsedCache.length > 0) {
+            setProducts(parsedCache);
+          }
+        }
+      } catch (e) {}
+    });
     // Fetch slides
     api.getSlides().then(setSlides).catch(() => {});
     // Fetch CMS

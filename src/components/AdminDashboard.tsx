@@ -328,17 +328,81 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Save Product
-  const handleSaveProduct = async (product: Product) => {
-    setIsSaving(true);
+  // Helper to persist to localStorage backup immediately
+  const persistToLocalBackup = (prods: Product[]) => {
     try {
-      const updated = await api.updateProduct(product.id, product);
-      const newProducts = localProducts.map(p => (p.id === updated.id ? updated : p));
-      setLocalProducts(newProducts);
-      onProductsUpdated(newProducts);
-      showToast(`¡Producto "${product.name}" actualizado!`);
-    } catch {
-      alert('Error al guardar el producto');
+      localStorage.setItem('lumea_products_cache', JSON.stringify(prods));
+      const backupObj = {
+        timestamp: new Date().toISOString(),
+        count: prods.length,
+        products: prods
+      };
+      localStorage.setItem('lumea_catalog_backup', JSON.stringify(backupObj));
+      setBrowserBackup(backupObj);
+    } catch (e) {
+      console.warn('LocalStorage save warning:', e);
+    }
+  };
+
+  // Save Product (Single or Selected)
+  const handleSaveProduct = async (productToSave?: Product) => {
+    const target = productToSave || selectedProduct;
+    if (!target) {
+      alert('No hay ningún producto seleccionado para guardar');
+      return;
+    }
+
+    setIsSaving(true);
+    // 1. Inmediatamente actualizar la lista local en memoria
+    const updatedList = localProducts.map(p => (p.id === target.id ? target : p));
+    setLocalProducts(updatedList);
+    onProductsUpdated(updatedList);
+
+    // 2. BLINDAJE LOCAL INMEDIATO: Guardar en localStorage instantáneamente
+    persistToLocalBackup(updatedList);
+
+    // 3. Guardar en el servidor backend (con reintento de lista completa si falla el individual)
+    try {
+      let savedProduct: Product;
+      try {
+        savedProduct = await api.updateProduct(target.id, target);
+      } catch (singleErr: any) {
+        console.warn('Individual update failed, attempting full catalog sync fallback:', singleErr);
+        const serverProducts = await api.updateAllProducts(updatedList);
+        savedProduct = serverProducts.find(p => p.id === target.id) || target;
+      }
+
+      // Reemplazar con el producto devuelto del servidor
+      const finalList = updatedList.map(p => (p.id === savedProduct.id ? savedProduct : p));
+      setLocalProducts(finalList);
+      onProductsUpdated(finalList);
+      persistToLocalBackup(finalList);
+
+      showToast(`¡Producto "${target.name}" guardado exitosamente!`);
+    } catch (err: any) {
+      console.error('Error al guardar en el servidor:', err);
+      // Los datos ya están a salvo en localStorage y memoria
+      showToast(`Guardado en tu navegador (nota: ${err.message || 'sin conexión'})`);
+      alert(`Tus cambios se guardaron de forma segura en tu navegador.\n\nDetalle: ${err.message || 'Error de conexión'}.\n\nNo has perdido ningún dato.`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Save All Products
+  const handleSaveAllProducts = async () => {
+    setIsSaving(true);
+    persistToLocalBackup(localProducts);
+    try {
+      const serverProducts = await api.updateAllProducts(localProducts);
+      setLocalProducts(serverProducts);
+      onProductsUpdated(serverProducts);
+      persistToLocalBackup(serverProducts);
+      showToast(`¡Catálogo completo (${serverProducts.length} productos) guardado exitosamente!`);
+    } catch (err: any) {
+      console.error('Error al guardar todo:', err);
+      showToast(`Guardado en tu navegador`);
+      alert(`Catálogo guardado en la memoria local de tu navegador.\n\nDetalle del servidor: ${err.message || 'Error de conexión'}.`);
     } finally {
       setIsSaving(false);
     }
@@ -438,7 +502,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Create New Product
   const handleCreateProduct = async () => {
     const brandToUse = (adminProductBrandFilter === 'Todas' || adminProductBrandFilter === 'LUMÉA') ? 'H2Derm' : adminProductBrandFilter;
-    const newProdTemplate: Partial<Product> = {
+    const newId = 'prod-' + Date.now();
+    const newProdTemplate: Product = {
+      id: newId,
       name: `Nuevo Producto ${brandToUse}`,
       tagline: 'Fórmula de alta eficacia desarrollada en laboratorio',
       brand: brandToUse as any,
@@ -455,6 +521,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       description: 'Fórmula cosmética desarrollada con rigurosos estándares farmacéuticos para una eficacia visible y duradera.',
       howToUse: 'Aplicar suavemente con movimientos circulares hasta su total absorción.',
       benefits: ['Fórmula hipoalergénica', 'Resultados comprobados', 'Apta para todo tipo de piel'],
+      badges: ['Nuevo Lanzamiento'],
+      featured: false,
       stock: 50,
       rating: 5.0,
       reviewsCount: 1,
@@ -463,19 +531,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     };
 
     setIsSaving(true);
+    // Put new product at position 1 and re-index remaining immediately
+    const updatedList = [
+      newProdTemplate,
+      ...localProducts.map((p, idx) => ({ ...p, order: idx + 2 }))
+    ];
+    setLocalProducts(updatedList);
+    onProductsUpdated(updatedList);
+    setSelectedProductId(newId);
+    persistToLocalBackup(updatedList);
+
     try {
       const created = await api.createProduct(newProdTemplate);
-      // Put new product at position 1 and re-index remaining
-      const updatedList = [
+      const serverUpdatedList = [
         created,
-        ...localProducts.map((p, idx) => ({ ...p, order: idx + 2 }))
+        ...localProducts.filter(p => p.id !== created.id).map((p, idx) => ({ ...p, order: idx + 2 }))
       ];
-      setLocalProducts(updatedList);
-      onProductsUpdated(updatedList);
+      setLocalProducts(serverUpdatedList);
+      onProductsUpdated(serverUpdatedList);
       setSelectedProductId(created.id);
+      persistToLocalBackup(serverUpdatedList);
       showToast(`¡Producto creado exitosamente en 1ª posición para ${created.brand}!`);
-    } catch {
-      alert('Error al crear el nuevo producto');
+    } catch (err: any) {
+      console.warn('Server create product error, fallback to batch sync:', err);
+      try {
+        await api.updateAllProducts(updatedList);
+        persistToLocalBackup(updatedList);
+        showToast(`¡Producto creado y sincronizado con el catálogo!`);
+      } catch {
+        showToast(`Producto creado y respaldado en tu navegador.`);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -485,19 +570,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleDeleteProduct = async (id: string) => {
     if (!confirm('¿Estás seguro de que deseas eliminar este producto del catálogo?')) return;
     setIsSaving(true);
+    const updatedList = localProducts
+      .filter(p => p.id !== id)
+      .map((p, idx) => ({ ...p, order: idx + 1 }));
+
+    setLocalProducts(updatedList);
+    onProductsUpdated(updatedList);
+    persistToLocalBackup(updatedList);
+
+    if (selectedProductId === id && updatedList.length > 0) {
+      setSelectedProductId(updatedList[0].id);
+    }
+
     try {
       await api.deleteProduct(id);
-      const updatedList = localProducts
-        .filter(p => p.id !== id)
-        .map((p, idx) => ({ ...p, order: idx + 1 }));
-      setLocalProducts(updatedList);
-      onProductsUpdated(updatedList);
-      if (selectedProductId === id && updatedList.length > 0) {
-        setSelectedProductId(updatedList[0].id);
-      }
       showToast('Producto eliminado correctamente.');
-    } catch {
-      alert('Error al eliminar el producto');
+    } catch (err: any) {
+      console.warn('Delete product server error, fallback to batch sync:', err);
+      try {
+        await api.updateAllProducts(updatedList);
+        showToast('Producto eliminado del catálogo.');
+      } catch {
+        showToast('Producto eliminado en tu navegador.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -1214,11 +1309,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       onClick={() => handleSaveProduct(selectedProduct)}
                       disabled={isSaving}
                       className="bg-[#E6007E] hover:bg-[#C9006B] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
+                      title="Guardar cambios del producto seleccionado"
                     >
                       <Save className="w-4 h-4" />
                       <span>{isSaving ? 'Guardando...' : 'Guardar'}</span>
                     </button>
                   )}
+
+                  <button
+                    onClick={handleSaveAllProducts}
+                    disabled={isSaving}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                    title="Guardar y blindar todo el catálogo actual de productos"
+                  >
+                    <Database className="w-4 h-4 text-emerald-400" />
+                    <span>Guardar Todo</span>
+                  </button>
                 </div>
               </div>
 
