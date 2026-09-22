@@ -300,12 +300,12 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
 
   // ==========================================
-  // MARCA 2: LUMÉA (RUTINA FACIAL BOTÁNICA - 10 PRODUCTOS)
-  // Preservando los 6 productos creados por el usuario
+  // LÍNEA DERMOCOSMÉTICA FACIAL: H2Derm
+  // Preservando los productos de rutina facial botánica
   // ==========================================
   {
     id: 'prod-1',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-CREM-001',
     name: 'Crema Hidratante Facial Intensiva Hydra-Deep 72H',
     tagline: 'Hidratación multicapa profunda con Ácido Hialurónico, Ceramidas y Niacinamida',
@@ -335,7 +335,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-2',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-SERU-002',
     name: 'Serum con ADN liposomado & Crema hidratante con ácido hialurónico',
     tagline: 'Vitamina C Pura 12%, Ácido Ferúlico y Vitamina E para luminosidad y firmeza',
@@ -363,7 +363,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-3',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-OJOS-003',
     name: 'Contorno de Ojos Reparador Antifatiga Total Eye Lift',
     tagline: 'Desinflama bolsas, disminuye ojeras oscuras y alisa líneas con Cafeína & Péptidos',
@@ -393,7 +393,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-4',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-GEL-004',
     name: 'Gel Facial Limpiador Equilibrante Pure Botanics',
     tagline: 'Purifica poros en profundidad con Extracto de Árbol de Té, Centella y Aloe Vera',
@@ -423,7 +423,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-5',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-MICE-005',
     name: 'Serum DMEA y Cafeina',
     tagline: 'Ayuda a la firmeza y tension de la piel para lucir más jovén',
@@ -453,7 +453,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-6',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-PACK-006',
     name: 'Set Rutina Facial Completa Día de la Madre LUMÉA 5-en-1',
     tagline: 'Pack de lujo: Crema Hidratante + Serum Glow + Contorno + Gel Limpiador + Agua Micelar',
@@ -482,7 +482,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-7',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-PEEL-007',
     name: 'LUMÉA - Peeling Enzimático Exfoliante Frutos Rojos & Papaya',
     tagline: 'Exfoliación suave sin gránulos abrasivos para piel de porcelana',
@@ -510,7 +510,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-8',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-ACID-008',
     name: 'LUMÉA - Elixir Facial Escualano Vegetal & Rosa Mosqueta Pura',
     tagline: 'Aceite seco regenerador ultra nutritivo toque sedoso',
@@ -538,7 +538,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-9',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-MASC-009',
     name: 'LUMÉA - Máscara Facial Nocturna Hidrogel Colágeno Puro',
     tagline: 'Efecto descanso 8 horas con Ácido Hialurónico y Péptidos Tensores',
@@ -566,7 +566,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'prod-10',
-    brand: 'LUMÉA',
+    brand: 'H2Derm',
     sku: 'LUM-MIST-010',
     name: 'LUMÉA - Bruma Facial Refrescante con Agua de Rosas & Niacinamida',
     tagline: 'Hidrata, fija el maquillaje e ilumina el rostro en cualquier momento',
@@ -1499,7 +1499,7 @@ export const INITIAL_SLIDES: CarouselSlide[] = [
 ];
 
 export const INITIAL_CMS: StoreCMS = {
-  storeName: 'LUMÉA Laboratorio Cosmético',
+  storeName: 'LUMÉA & Laboratorio Cosmético',
   storeTagline: 'Laboratorio de Cosmética & Catálogo Multimarca',
   announcementBar: '💖 ¡ESPECIAL DÍA DE LA MADRE EN LUMÉA! 3 y 6 CUOTAS + ENVÍOS A TODO EL PAÍS ',
   announcementActive: true,
@@ -1510,9 +1510,9 @@ export const INITIAL_CMS: StoreCMS = {
   mothersDayPromoTitle: 'Celebrá a Mamá con el Cuidado que su Piel Merece',
   mothersDayPromoSubtitle: 'Regalale a mamá una experiencia de spa facial en su hogar: Crema Hidratante, Serum Luminoso, Contorno de Ojos, Gel Facial y Agua Micelar en un pack exclusivo.',
   mothersDayPromoBanner: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200&q=85',
-  mothersDayPromoDiscount: 'Packs de regalo con 30% OFF ',
+  mothersDayPromoDiscount: 'Packs de regalo con 30% OFF y tarjeta con dedicatoria personalizada',
   freeShippingThreshold: 25000,
-  adminPin: 'lumeanosotros',
+  adminPin: 'lumea2025',
   createYourBrand: {
     title: 'Crea tu marca con nosotros',
     subtitle: 'Desarrollo integral de productos cosméticos en nuestro laboratorio',

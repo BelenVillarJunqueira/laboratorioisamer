@@ -35,19 +35,23 @@ function loadData(): StoredData {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
 
-      // Ensure every product has a brand attribute
-      const storedProducts: Product[] = (parsed.products || []).map((p: any) => ({
-        ...p,
-        brand: p.brand || 'LUMÉA'
-      }));
+      // Ensure every product has a valid brand (LUMÉA is the store/lab name, not a brand)
+      // and do NOT force-inject INITIAL_PRODUCTS if stored products already exist!
+      const rawProducts = Array.isArray(parsed.products) ? parsed.products : [];
+      let storedProducts: Product[] = [];
 
-      // Merge brand products from INITIAL_PRODUCTS if not already present
-      const storedIds = new Set(storedProducts.map(p => p.id));
-      const mergedProducts = [...storedProducts];
-      for (const initProd of INITIAL_PRODUCTS) {
-        if (!storedIds.has(initProd.id)) {
-          mergedProducts.push(initProd);
-        }
+      if (rawProducts.length > 0) {
+        storedProducts = rawProducts.map((p: any, idx: number) => ({
+          ...p,
+          brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
+          order: typeof p.order === 'number' ? p.order : (idx + 1)
+        }));
+      } else {
+        storedProducts = INITIAL_PRODUCTS.map((p, idx) => ({
+          ...p,
+          brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
+          order: typeof p.order === 'number' ? p.order : (idx + 1)
+        }));
       }
 
       // Merge CMS settings
@@ -64,7 +68,7 @@ function loadData(): StoredData {
       };
 
       return {
-        products: mergedProducts,
+        products: storedProducts,
         slides: parsed.slides && parsed.slides.length > 0 ? parsed.slides : INITIAL_SLIDES,
         cms: mergedCms,
         orders: parsed.orders || INITIAL_ORDERS,
@@ -149,7 +153,57 @@ let storeState = loadData();
 
 // Products API
 app.get('/api/products', (req, res) => {
-  res.json(storeState.products);
+  const sorted = [...storeState.products].sort((a, b) => (a.order || 0) - (b.order || 0));
+  res.json(sorted);
+});
+
+// Batch update products or save full list
+app.put('/api/products', (req, res) => {
+  if (Array.isArray(req.body)) {
+    storeState.products = req.body.map((p, idx) => ({
+      ...p,
+      brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
+      order: typeof p.order === 'number' ? p.order : (idx + 1)
+    }));
+    saveData(storeState);
+    return res.json({ success: true, products: storeState.products });
+  }
+  res.status(400).json({ error: 'Se requiere un arreglo de productos' });
+});
+
+// Reorder products endpoint
+app.put('/api/products/reorder', (req, res) => {
+  const { products, productIds } = req.body;
+  if (Array.isArray(products)) {
+    storeState.products = products.map((p, idx) => ({
+      ...p,
+      brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
+      order: idx + 1
+    }));
+    saveData(storeState);
+    return res.json({ success: true, products: storeState.products });
+  }
+  if (Array.isArray(productIds)) {
+    const map = new Map(storeState.products.map(p => [p.id, p]));
+    const reordered: Product[] = [];
+    productIds.forEach((id, idx) => {
+      const p = map.get(id);
+      if (p) {
+        p.order = idx + 1;
+        reordered.push(p);
+        map.delete(id);
+      }
+    });
+    // Append any unmentioned products
+    for (const remaining of map.values()) {
+      remaining.order = reordered.length + 1;
+      reordered.push(remaining);
+    }
+    storeState.products = reordered;
+    saveData(storeState);
+    return res.json({ success: true, products: storeState.products });
+  }
+  res.status(400).json({ error: 'Se requiere products o productIds' });
 });
 
 app.put('/api/products/:id', (req, res) => {
@@ -160,7 +214,10 @@ app.put('/api/products/:id', (req, res) => {
   if (index !== -1) {
     storeState.products[index] = {
       ...storeState.products[index],
-      ...updatedProduct
+      ...updatedProduct,
+      brand: (updatedProduct.brand && updatedProduct.brand !== 'LUMÉA')
+        ? updatedProduct.brand
+        : (storeState.products[index].brand !== 'LUMÉA' ? storeState.products[index].brand : 'H2Derm')
     };
     saveData(storeState);
     return res.json({ success: true, product: storeState.products[index] });
@@ -169,16 +226,25 @@ app.put('/api/products/:id', (req, res) => {
 });
 
 app.post('/api/products', (req, res) => {
+  const brandToUse = (req.body.brand && req.body.brand !== 'LUMÉA') ? req.body.brand : 'H2Derm';
+  
+  // Re-index existing products so new product becomes order #1
+  storeState.products.forEach((p, idx) => {
+    p.order = idx + 2;
+  });
+
   const newProduct: Product = {
     ...req.body,
     id: req.body.id || 'prod-' + Date.now(),
-    brand: req.body.brand || 'H2Derm',
+    brand: brandToUse,
+    order: 1,
     rating: req.body.rating || 5.0,
     reviewsCount: req.body.reviewsCount || 1,
     secondaryImages: req.body.secondaryImages || [],
     badges: req.body.badges || [],
     benefits: req.body.benefits || []
   };
+
   storeState.products.unshift(newProduct);
   saveData(storeState);
   res.status(201).json({ success: true, product: newProduct });
@@ -187,6 +253,10 @@ app.post('/api/products', (req, res) => {
 app.delete('/api/products/:id', (req, res) => {
   const { id } = req.params;
   storeState.products = storeState.products.filter(p => p.id !== id);
+  // Re-index remaining products
+  storeState.products.forEach((p, idx) => {
+    p.order = idx + 1;
+  });
   saveData(storeState);
   res.json({ success: true });
 });

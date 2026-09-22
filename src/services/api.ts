@@ -41,6 +41,28 @@ export const api = {
     return res.ok;
   },
 
+  async reorderProducts(products: Product[]): Promise<Product[]> {
+    const res = await fetch('/api/products/reorder', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ products })
+    });
+    if (!res.ok) throw new Error('Error al reordenar productos');
+    const data = await res.json();
+    return data.products;
+  },
+
+  async updateAllProducts(products: Product[]): Promise<Product[]> {
+    const res = await fetch('/api/products', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(products)
+    });
+    if (!res.ok) throw new Error('Error al actualizar productos');
+    const data = await res.json();
+    return data.products;
+  },
+
   // Slides
   async getSlides(): Promise<CarouselSlide[]> {
     try {

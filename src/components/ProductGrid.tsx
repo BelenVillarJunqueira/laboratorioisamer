@@ -41,7 +41,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     { id: 'Todas', label: 'Todas las Marcas' },
     { id: 'H2Derm', label: 'H2Derm', tag: 'Principal' },
     { id: 'Mimitos', label: 'Mimitos', tag: 'Niños' },
-    { id: 'SoftCare', label: 'SoftCare', tag: 'Premium' },
+    { id: 'SoftCare', label: 'SoftCare' },
     { id: 'Le Salon', label: 'Le Salón', tag: 'Barberías' }
   ];
 
@@ -49,16 +49,18 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
     str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 
   // Derive available categories dynamically or from default list
-  const categories = ['Todos', 'Especial Mamá', 'Cremas', 'Serums', 'Ojos', 'Limpieza', 'Packs', 'Geles' , 'Aceites', 'Capilar'];
+  const categories = ['Todos', 'Especial Mamá', 'Cremas', 'Serums', 'Ojos', 'Limpieza', 'Packs', 'Corporal', 'Capilar'];
 
-  const filteredProducts = products.filter(product => {
-    // Brand match
-    const prodBrand = product.brand || 'LUMÉA';
+  const filteredProducts = [...products]
+    .sort((a, b) => (a.order || 0) - (b.order || 0))
+    .filter(product => {
+    // Brand match (LUMÉA is the laboratory/store, not a product brand)
+    const prodBrand = product.brand || 'H2Derm';
     const matchBrand =
       selectedBrand === 'Todas' ||
       normalizeText(prodBrand) === normalizeText(selectedBrand) ||
       (normalizeText(selectedBrand).includes('salon') && normalizeText(prodBrand).includes('salon')) ||
-      (normalizeText(selectedBrand).includes('mimito') && normalizeText(prodBrand).includes('mimito'));
+      (normalizeText(selectedBrand).includes('mimito') && normalizeText(prodBrand).includes('mimit'));
 
     // Category match
     const matchCategory =

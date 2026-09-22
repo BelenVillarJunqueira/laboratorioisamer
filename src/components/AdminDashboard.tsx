@@ -14,6 +14,9 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
+  ChevronsUp,
+  ChevronsDown,
+  ListOrdered,
   Check,
   Eye,
   MessageCircle,
@@ -259,13 +262,105 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  // Reorder product up / down / to top / to bottom in the catalog
+  const moveProduct = async (index: number, direction: 'up' | 'down') => {
+    const newProducts = [...localProducts];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    if (targetIdx < 0 || targetIdx >= newProducts.length) return;
+
+    const temp = newProducts[index];
+    newProducts[index] = newProducts[targetIdx];
+    newProducts[targetIdx] = temp;
+
+    // update order numbers
+    newProducts.forEach((p, idx) => {
+      p.order = idx + 1;
+    });
+
+    setLocalProducts(newProducts);
+    onProductsUpdated(newProducts);
+
+    try {
+      await api.reorderProducts(newProducts);
+      showToast(`¡"${temp.name}" movido a la posición #${targetIdx + 1}!`);
+    } catch {
+      showToast(`¡Orden actualizado (#${targetIdx + 1})!`);
+    }
+  };
+
+  const moveProductToTop = async (index: number) => {
+    if (index <= 0) return;
+    const newProducts = [...localProducts];
+    const [item] = newProducts.splice(index, 1);
+    newProducts.unshift(item);
+
+    newProducts.forEach((p, idx) => {
+      p.order = idx + 1;
+    });
+
+    setLocalProducts(newProducts);
+    onProductsUpdated(newProducts);
+
+    try {
+      await api.reorderProducts(newProducts);
+      showToast(`¡"${item.name}" ahora aparece en 1º lugar del catálogo!`);
+    } catch {
+      showToast('Producto ubicado en 1º lugar');
+    }
+  };
+
+  const moveProductToBottom = async (index: number) => {
+    if (index >= localProducts.length - 1) return;
+    const newProducts = [...localProducts];
+    const [item] = newProducts.splice(index, 1);
+    newProducts.push(item);
+
+    newProducts.forEach((p, idx) => {
+      p.order = idx + 1;
+    });
+
+    setLocalProducts(newProducts);
+    onProductsUpdated(newProducts);
+
+    try {
+      await api.reorderProducts(newProducts);
+      showToast(`¡"${item.name}" ahora está al final del catálogo!`);
+    } catch {
+      showToast('Producto ubicado al final');
+    }
+  };
+
+  const moveProductToPosition = async (fromIndex: number, targetPos1Based: number) => {
+    const targetIndex = Math.max(0, Math.min(localProducts.length - 1, targetPos1Based - 1));
+    if (fromIndex === targetIndex) return;
+
+    const newProducts = [...localProducts];
+    const [item] = newProducts.splice(fromIndex, 1);
+    newProducts.splice(targetIndex, 0, item);
+
+    newProducts.forEach((p, idx) => {
+      p.order = idx + 1;
+    });
+
+    setLocalProducts(newProducts);
+    onProductsUpdated(newProducts);
+
+    try {
+      await api.reorderProducts(newProducts);
+      showToast(`¡"${item.name}" reubicado en la posición #${targetIndex + 1}!`);
+    } catch {
+      showToast(`Posición #${targetIndex + 1} actualizada`);
+    }
+  };
+
   // Create New Product
   const handleCreateProduct = async () => {
-    const brandToUse = adminProductBrandFilter === 'Todas' ? 'H2Derm' : adminProductBrandFilter;
+    const brandToUse = (adminProductBrandFilter === 'Todas' || adminProductBrandFilter === 'LUMÉA') ? 'H2Derm' : adminProductBrandFilter;
     const newProdTemplate: Partial<Product> = {
       name: `Nuevo Producto ${brandToUse}`,
       tagline: 'Fórmula de alta eficacia desarrollada en laboratorio',
       brand: brandToUse as any,
+      order: 1,
       category: 'Cremas',
       price: 15000,
       originalPrice: 18000,
@@ -288,11 +383,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsSaving(true);
     try {
       const created = await api.createProduct(newProdTemplate);
-      const updatedList = [created, ...localProducts];
+      // Put new product at position 1 and re-index remaining
+      const updatedList = [
+        created,
+        ...localProducts.map((p, idx) => ({ ...p, order: idx + 2 }))
+      ];
       setLocalProducts(updatedList);
       onProductsUpdated(updatedList);
       setSelectedProductId(created.id);
-      showToast(`¡Producto creado exitosamente para la marca ${created.brand}!`);
+      showToast(`¡Producto creado exitosamente en 1ª posición para ${created.brand}!`);
     } catch {
       alert('Error al crear el nuevo producto');
     } finally {
@@ -306,7 +405,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIsSaving(true);
     try {
       await api.deleteProduct(id);
-      const updatedList = localProducts.filter(p => p.id !== id);
+      const updatedList = localProducts
+        .filter(p => p.id !== id)
+        .map((p, idx) => ({ ...p, order: idx + 1 }));
       setLocalProducts(updatedList);
       onProductsUpdated(updatedList);
       if (selectedProductId === id && updatedList.length > 0) {
@@ -363,7 +464,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const selectedProduct = localProducts.find(p => p.id === selectedProductId) || localProducts[0];
 
   const brandProducts = localProducts.filter(
-    p => adminProductBrandFilter === 'Todas' || (p.brand || 'LUMÉA') === adminProductBrandFilter
+    p => adminProductBrandFilter === 'Todas' || (p.brand || 'H2Derm') === adminProductBrandFilter
   );
 
   if (!isOpen) return null;
@@ -1043,11 +1144,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* Brand filter tabs */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-neutral-800">
                 <span className="text-[11px] font-bold text-neutral-400 mr-2 shrink-0">Filtrar Marca:</span>
-                {(['Todas', 'H2Derm', 'LUMÉA', 'Mimitos', 'SoftCare', 'Le Salon'] as const).map((brandName) => {
+                {(['Todas', 'H2Derm', 'Mimitos', 'SoftCare', 'Le Salon'] as const).map((brandName) => {
                   const count =
                     brandName === 'Todas'
                       ? localProducts.length
-                      : localProducts.filter(p => (p.brand || 'LUMÉA') === brandName).length;
+                      : localProducts.filter(p => (p.brand || 'H2Derm') === brandName).length;
                   const isActive = adminProductBrandFilter === brandName;
                   return (
                     <button
@@ -1058,7 +1159,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         const matching =
                           brandName === 'Todas'
                             ? localProducts
-                            : localProducts.filter(p => (p.brand || 'LUMÉA') === brandName);
+                            : localProducts.filter(p => (p.brand || 'H2Derm') === brandName);
                         if (matching.length > 0 && !matching.some(p => p.id === selectedProductId)) {
                           setSelectedProductId(matching[0].id);
                         }
@@ -1093,25 +1194,74 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {brandProducts.map((prod) => (
-                    <button
-                      key={prod.id}
-                      onClick={() => setSelectedProductId(prod.id)}
-                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col items-center gap-1.5 relative group ${
-                        selectedProductId === prod.id
-                          ? 'border-[#E6007E] bg-[#E6007E]/20 ring-1 ring-[#E6007E]'
-                          : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
-                      }`}
-                    >
-                      <span className="absolute top-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-neutral-900/80 text-pink-300 border border-neutral-700">
-                        {prod.brand || 'LUMÉA'}
-                      </span>
-                      <img src={prod.image} alt={prod.name} className="w-14 h-14 rounded-lg object-cover bg-neutral-900 mt-3" />
-                      <span className="text-[10px] font-bold text-center line-clamp-1 text-white w-full">{prod.name}</span>
-                      <span className="text-[10px] text-[#FF80BF] font-mono">{formatCurrency(prod.price)}</span>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
+                  {brandProducts.map((prod) => {
+                    const globalIdx = localProducts.findIndex(p => p.id === prod.id);
+                    return (
+                      <div
+                        key={prod.id}
+                        className={`p-2.5 rounded-xl border text-left transition-all flex flex-col items-center justify-between gap-1.5 relative group ${
+                          selectedProductId === prod.id
+                            ? 'border-[#E6007E] bg-[#E6007E]/20 ring-1 ring-[#E6007E]'
+                            : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
+                        }`}
+                      >
+                        {/* Brand badge */}
+                        <span className="absolute top-1.5 left-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-bold bg-neutral-900/80 text-pink-300 border border-neutral-700">
+                          {prod.brand || 'H2Derm'}
+                        </span>
+
+                        {/* Order badge */}
+                        <span
+                          className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0.5 rounded-md font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/80 shadow-xs"
+                          title={`Posición en catálogo: #${globalIdx + 1}`}
+                        >
+                          #{globalIdx + 1}
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProductId(prod.id)}
+                          className="w-full flex flex-col items-center text-center cursor-pointer pt-3"
+                        >
+                          <img src={prod.image} alt={prod.name} className="w-14 h-14 rounded-lg object-cover bg-neutral-900" />
+                          <span className="text-[10px] font-bold text-center line-clamp-1 text-white w-full mt-1.5">{prod.name}</span>
+                          <span className="text-[10px] text-[#FF80BF] font-mono">{formatCurrency(prod.price)}</span>
+                        </button>
+
+                        {/* Quick reorder controls */}
+                        <div className="flex items-center justify-between w-full pt-1.5 mt-1 border-t border-neutral-700/60 text-[10px]">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); moveProduct(globalIdx, 'up'); }}
+                            disabled={globalIdx === 0}
+                            title="Subir producto (aparece antes)"
+                            className="p-1 rounded bg-neutral-900 hover:bg-neutral-700 text-neutral-300 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed"
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); moveProductToTop(globalIdx); }}
+                            disabled={globalIdx === 0}
+                            title="Poner en 1º lugar del catálogo"
+                            className="px-1.5 py-0.5 rounded bg-indigo-900/80 hover:bg-indigo-700 text-indigo-200 font-bold text-[9px] disabled:opacity-25 disabled:cursor-not-allowed"
+                          >
+                            1º
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); moveProduct(globalIdx, 'down'); }}
+                            disabled={globalIdx === localProducts.length - 1}
+                            title="Bajar producto (aparece después)"
+                            className="p-1 rounded bg-neutral-900 hover:bg-neutral-700 text-neutral-300 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed"
+                          >
+                            <ArrowDown className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -1122,7 +1272,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="flex items-center justify-between border-b border-neutral-700 pb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-xs px-2.5 py-1 rounded-lg font-bold bg-[#E6007E] text-white">
-                        {selectedProduct.brand || 'LUMÉA'}
+                        {selectedProduct.brand || 'H2Derm'}
                       </span>
                       <h4 className="text-sm font-bold text-white line-clamp-1">
                         Editando: {selectedProduct.name}
@@ -1151,6 +1301,120 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <Save className="w-3.5 h-3.5" />
                         <span>Guardar</span>
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Product Order & Position Toolbar */}
+                  <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs shadow-inner">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 flex items-center justify-center font-bold font-mono text-sm shadow-xs">
+                        #{localProducts.findIndex(p => p.id === selectedProduct.id) + 1}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-white text-xs">
+                            Posición en Catálogo: #{localProducts.findIndex(p => p.id === selectedProduct.id) + 1} de {localProducts.length}
+                          </p>
+                          <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-medium">
+                            Orden en Tienda
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-neutral-400">
+                          Define el orden visual en que los clientes ven este producto en la página
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const idx = localProducts.findIndex(p => p.id === selectedProduct.id);
+                          if (idx > 0) moveProductToTop(idx);
+                        }}
+                        disabled={localProducts.findIndex(p => p.id === selectedProduct.id) === 0}
+                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-xs transition-colors"
+                        title="Ubica este producto inmediatamente en el 1º lugar del catálogo"
+                      >
+                        <ChevronsUp className="w-3.5 h-3.5" />
+                        <span>Poner 1º en Catálogo</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const idx = localProducts.findIndex(p => p.id === selectedProduct.id);
+                          if (idx > 0) moveProduct(idx, 'up');
+                        }}
+                        disabled={localProducts.findIndex(p => p.id === selectedProduct.id) === 0}
+                        className="px-2.5 py-1.5 bg-neutral-900 hover:bg-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed text-neutral-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors border border-neutral-700"
+                        title="Mover una posición hacia arriba"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Subir</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const idx = localProducts.findIndex(p => p.id === selectedProduct.id);
+                          if (idx < localProducts.length - 1) moveProduct(idx, 'down');
+                        }}
+                        disabled={localProducts.findIndex(p => p.id === selectedProduct.id) === localProducts.length - 1}
+                        className="px-2.5 py-1.5 bg-neutral-900 hover:bg-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed text-neutral-200 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors border border-neutral-700"
+                        title="Mover una posición hacia abajo"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Bajar</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const idx = localProducts.findIndex(p => p.id === selectedProduct.id);
+                          if (idx < localProducts.length - 1) moveProductToBottom(idx);
+                        }}
+                        disabled={localProducts.findIndex(p => p.id === selectedProduct.id) === localProducts.length - 1}
+                        className="px-2.5 py-1.5 bg-neutral-900 hover:bg-neutral-700 disabled:opacity-30 disabled:cursor-not-allowed text-neutral-300 rounded-xl text-xs font-bold flex items-center gap-1 transition-colors border border-neutral-700"
+                        title="Ubicar al final del catálogo"
+                      >
+                        <ChevronsDown className="w-3.5 h-3.5" />
+                        <span>Poner Último</span>
+                      </button>
+
+                      {/* Manual position input */}
+                      <div className="flex items-center gap-1 bg-neutral-900 px-2.5 py-1 rounded-xl border border-neutral-700">
+                        <span className="text-[10px] text-neutral-400 font-bold">Ir a Posición:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={localProducts.length}
+                          defaultValue={localProducts.findIndex(p => p.id === selectedProduct.id) + 1}
+                          key={selectedProduct.id}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const target = parseInt((e.target as HTMLInputElement).value);
+                              if (!isNaN(target)) {
+                                moveProductToPosition(localProducts.findIndex(p => p.id === selectedProduct.id), target);
+                              }
+                            }
+                          }}
+                          className="w-12 bg-neutral-950 border border-neutral-800 rounded px-1.5 py-0.5 text-white font-mono text-center text-xs outline-none focus:border-indigo-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                            const target = parseInt(input.value);
+                            if (!isNaN(target)) {
+                              moveProductToPosition(localProducts.findIndex(p => p.id === selectedProduct.id), target);
+                            }
+                          }}
+                          className="px-2 py-0.5 bg-indigo-700 hover:bg-indigo-600 text-white rounded text-[10px] font-bold"
+                        >
+                          Ir
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1417,7 +1681,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           Marca *
                         </label>
                         <select
-                          value={selectedProduct.brand || 'LUMÉA'}
+                          value={selectedProduct.brand || 'H2Derm'}
                           onChange={(e) => {
                             const updated = localProducts.map(p =>
                               p.id === selectedProduct.id ? { ...p, brand: e.target.value as any } : p
@@ -1426,11 +1690,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           }}
                           className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E] font-bold"
                         >
-                          <option value="H2Derm">H2Derm</option>
-                          <option value="LUMÉA">LUMÉA</option>
-                          <option value="Mimitos">Mimitos</option>
-                          <option value="SoftCare">SoftCare</option>
-                          <option value="Le Salon">Le Salon</option>
+                          <option value="H2Derm">H2Derm (Línea Principal)</option>
+                          <option value="Mimitos">Mimitos (Línea Infantil & Bebés)</option>
+                          <option value="SoftCare">SoftCare (Dermo-Cuidado)</option>
+                          <option value="Le Salon">Le Salon (Capilar & Barbería)</option>
                         </select>
                       </div>
 
