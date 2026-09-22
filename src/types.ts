@@ -11,7 +11,7 @@ export interface Product {
   brand: ProductBrand;
   name: string;
   tagline: string;
-  category: 'Cremas' | 'Serums' | 'Ojos' | 'Limpieza' | 'Packs' | 'Capilar' | 'Corporal' | 'Bebés/Kids' | string;
+  category: 'Cremas' | 'Serums' | 'Ojos' | 'Limpieza' | 'Packs' | 'Capilar' | 'Aceites' | 'Bebés/Kids' | string;
   price: number;
   originalPrice: number;
   discountPercentage: number;

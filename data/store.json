@@ -654,6 +654,105 @@
   ],
   "pixelLogs": [
     {
+      "id": "pix-1790108164474",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T20:16:04.474Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790108102989",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T20:15:02.989Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790108099898",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T20:14:59.898Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790108095785",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T20:14:55.785Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790106804913",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T19:53:24.913Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790106338051",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T19:45:38.051Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790106335950",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T19:45:35.950Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790106326904",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T19:45:26.904Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790106324032",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T19:45:24.032Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790106321985",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T19:45:21.985Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
+      "id": "pix-1790106318994",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T19:45:18.994Z",
+      "data": {
+        "url": "http://localhost:3000/#especial-madre",
+        "referrer": "http://localhost:3000/"
+      }
+    },
+    {
       "id": "pix-1790105997309",
       "eventName": "PageView",
       "timestamp": "2026-09-22T19:39:57.309Z",
@@ -2398,109 +2497,6 @@
       "id": "pix-1789765471601",
       "eventName": "PageView",
       "timestamp": "2026-09-18T21:04:31.601Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789765448809",
-      "eventName": "PageView",
-      "timestamp": "2026-09-18T21:04:08.809Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789765352843",
-      "eventName": "PageView",
-      "timestamp": "2026-09-18T21:02:32.843Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789765301566",
-      "eventName": "PageView",
-      "timestamp": "2026-09-18T21:01:41.566Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": ""
-      }
-    },
-    {
-      "id": "pix-1789765263861",
-      "eventName": "ViewContent",
-      "timestamp": "2026-09-18T21:01:03.861Z",
-      "data": {
-        "content_name": "Crema Hidratante Facial Intensiva Hydra-Deep 72H",
-        "content_id": "prod-1",
-        "value": 21900,
-        "currency": "ARS"
-      }
-    },
-    {
-      "id": "pix-1789765256108",
-      "eventName": "ViewContent",
-      "timestamp": "2026-09-18T21:00:56.108Z",
-      "data": {
-        "content_name": "Aceite para masajes ",
-        "content_id": "prod-4",
-        "value": 16500,
-        "currency": "ARS"
-      }
-    },
-    {
-      "id": "pix-1789765171675",
-      "eventName": "PageView",
-      "timestamp": "2026-09-18T20:59:31.675Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": ""
-      }
-    },
-    {
-      "id": "pix-1789764623769",
-      "eventName": "PageView",
-      "timestamp": "2026-09-18T20:50:23.769Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": ""
-      }
-    },
-    {
-      "id": "pix-1789585715905",
-      "eventName": "PageView",
-      "timestamp": "2026-09-16T19:08:35.905Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789585711296",
-      "eventName": "PageView",
-      "timestamp": "2026-09-16T19:08:31.296Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789585708377",
-      "eventName": "PageView",
-      "timestamp": "2026-09-16T19:08:28.377Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789585705667",
-      "eventName": "PageView",
-      "timestamp": "2026-09-16T19:08:25.667Z",
       "data": {
         "url": "http://localhost:3000/",
         "referrer": "http://localhost:3000/"
