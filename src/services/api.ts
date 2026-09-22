@@ -235,5 +235,37 @@ export const api = {
   async getAnalytics() {
     const res = await fetch('/api/analytics');
     return await res.json();
+  },
+
+  // Backup & Code Persistence
+  async getBackupData() {
+    const res = await fetch('/api/admin/backup');
+    if (!res.ok) throw new Error('Error al generar copia de seguridad');
+    return await res.json();
+  },
+
+  async restoreBackup(backupData: any) {
+    const res = await fetch('/api/admin/restore', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(backupData)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error al restaurar respaldo');
+    }
+    return await res.json();
+  },
+
+  async syncCode() {
+    const res = await fetch('/api/admin/sync-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error al sincronizar con el código fuente');
+    }
+    return await res.json();
   }
 };

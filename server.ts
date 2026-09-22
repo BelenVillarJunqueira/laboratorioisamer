@@ -6,7 +6,7 @@ import { INITIAL_PRODUCTS, INITIAL_SLIDES, INITIAL_CMS, INITIAL_ORDERS } from '.
 import { Product, CarouselSlide, StoreCMS, Order, PixelEventLog, PushNotification } from './src/types';
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Increase payload limit for image/video uploads
 app.use(express.json({ limit: '50mb' }));
@@ -34,10 +34,39 @@ function loadData(): StoredData {
     if (fs.existsSync(DATA_FILE)) {
       const raw = fs.readFileSync(DATA_FILE, 'utf-8');
       const parsed = JSON.parse(raw);
+
+      // Ensure every product has a brand attribute
+      const storedProducts: Product[] = (parsed.products || []).map((p: any) => ({
+        ...p,
+        brand: p.brand || 'LUMÉA'
+      }));
+
+      // Merge brand products from INITIAL_PRODUCTS if not already present
+      const storedIds = new Set(storedProducts.map(p => p.id));
+      const mergedProducts = [...storedProducts];
+      for (const initProd of INITIAL_PRODUCTS) {
+        if (!storedIds.has(initProd.id)) {
+          mergedProducts.push(initProd);
+        }
+      }
+
+      // Merge CMS settings
+      const mergedCms: StoreCMS = {
+        ...INITIAL_CMS,
+        ...(parsed.cms || {}),
+        createYourBrand: {
+          ...INITIAL_CMS.createYourBrand,
+          ...(parsed.cms?.createYourBrand || {})
+        },
+        enableMothersDay: parsed.cms?.enableMothersDay !== undefined
+          ? parsed.cms.enableMothersDay
+          : INITIAL_CMS.enableMothersDay
+      };
+
       return {
-        products: parsed.products || INITIAL_PRODUCTS,
-        slides: parsed.slides || INITIAL_SLIDES,
-        cms: parsed.cms || INITIAL_CMS,
+        products: mergedProducts,
+        slides: parsed.slides && parsed.slides.length > 0 ? parsed.slides : INITIAL_SLIDES,
+        cms: mergedCms,
         orders: parsed.orders || INITIAL_ORDERS,
         pixelLogs: parsed.pixelLogs || [],
         pushNotifications: parsed.pushNotifications || [],
@@ -142,12 +171,15 @@ app.put('/api/products/:id', (req, res) => {
 app.post('/api/products', (req, res) => {
   const newProduct: Product = {
     ...req.body,
-    id: 'prod-' + Date.now(),
+    id: req.body.id || 'prod-' + Date.now(),
+    brand: req.body.brand || 'H2Derm',
     rating: req.body.rating || 5.0,
     reviewsCount: req.body.reviewsCount || 1,
-    shades: req.body.shades || []
+    secondaryImages: req.body.secondaryImages || [],
+    badges: req.body.badges || [],
+    benefits: req.body.benefits || []
   };
-  storeState.products.push(newProduct);
+  storeState.products.unshift(newProduct);
   saveData(storeState);
   res.status(201).json({ success: true, product: newProduct });
 });
@@ -209,6 +241,104 @@ app.put('/api/cms', (req, res) => {
   };
   saveData(storeState);
   res.json({ success: true, cms: storeState.cms });
+});
+
+// Backup & Persistence Sync APIs
+app.get('/api/admin/backup', (req, res) => {
+  res.setHeader('Content-Disposition', 'attachment; filename="backup-catalogo-tienda.json"');
+  res.setHeader('Content-Type', 'application/json');
+  res.json({
+    version: '1.0',
+    exportDate: new Date().toISOString(),
+    storeState
+  });
+});
+
+app.post('/api/admin/restore', (req, res) => {
+  try {
+    const raw = req.body;
+    const payload = raw.storeState || raw.data || raw;
+
+    if (!payload || (!payload.products && !Array.isArray(payload))) {
+      return res.status(400).json({ error: 'Formato de respaldo no válido. Debe contener productos.' });
+    }
+
+    const newProducts = Array.isArray(payload) ? payload : (payload.products || storeState.products);
+    const newSlides = payload.slides && payload.slides.length > 0 ? payload.slides : storeState.slides;
+    const newCms = payload.cms ? { ...storeState.cms, ...payload.cms } : storeState.cms;
+    const newOrders = payload.orders || storeState.orders;
+
+    storeState = {
+      ...storeState,
+      products: newProducts,
+      slides: newSlides,
+      cms: newCms,
+      orders: newOrders
+    };
+
+    saveData(storeState);
+
+    // Also attempt to write to initialData.ts if available locally
+    try {
+      const initialDataPath = path.join(process.cwd(), 'src', 'data', 'initialData.ts');
+      if (fs.existsSync(initialDataPath)) {
+        const content = `import { Product, CarouselSlide, StoreCMS, Order } from '../types';
+
+export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(storeState.products, null, 2)};
+
+export const INITIAL_SLIDES: CarouselSlide[] = ${JSON.stringify(storeState.slides, null, 2)};
+
+export const INITIAL_CMS: StoreCMS = ${JSON.stringify(storeState.cms, null, 2)};
+
+export const INITIAL_ORDERS: Order[] = ${JSON.stringify(storeState.orders, null, 2)};
+`;
+        fs.writeFileSync(initialDataPath, content, 'utf-8');
+      }
+    } catch {
+      // non-fatal
+    }
+
+    res.json({
+      success: true,
+      message: '¡Copia de seguridad restaurada correctamente!',
+      products: storeState.products,
+      slides: storeState.slides,
+      cms: storeState.cms,
+      orders: storeState.orders
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al restaurar: ' + err.message });
+  }
+});
+
+app.post('/api/admin/sync-code', (req, res) => {
+  try {
+    const initialDataPath = path.join(process.cwd(), 'src', 'data', 'initialData.ts');
+    if (!fs.existsSync(initialDataPath)) {
+      return res.status(404).json({ error: 'No se encontró src/data/initialData.ts en el servidor' });
+    }
+
+    const content = `import { Product, CarouselSlide, StoreCMS, Order } from '../types';
+
+export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(storeState.products, null, 2)};
+
+export const INITIAL_SLIDES: CarouselSlide[] = ${JSON.stringify(storeState.slides, null, 2)};
+
+export const INITIAL_CMS: StoreCMS = ${JSON.stringify(storeState.cms, null, 2)};
+
+export const INITIAL_ORDERS: Order[] = ${JSON.stringify(storeState.orders, null, 2)};
+`;
+
+    fs.writeFileSync(initialDataPath, content, 'utf-8');
+    saveData(storeState);
+
+    res.json({
+      success: true,
+      message: '¡Catálogo sincronizado exitosamente con src/data/initialData.ts! Ya puedes hacer git commit y git push para que Render nunca más pierda los productos.'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al sincronizar con código: ' + err.message });
+  }
 });
 
 // Orders API

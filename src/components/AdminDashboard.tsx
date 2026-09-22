@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Save,
@@ -28,7 +28,10 @@ import {
   FlaskConical,
   Layers,
   Film,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Download,
+  FileCode,
+  Database
 } from 'lucide-react';
 import { Product, CarouselSlide, StoreCMS, Order, OrderStatus, PixelEventLog } from '../types';
 import { api } from '../services/api';
@@ -91,6 +94,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pushBody, setPushBody] = useState('');
   const [pushSuccess, setPushSuccess] = useState(false);
 
+  // Backup and restore ref
+  const restoreInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     setLocalCms(cms);
     setLocalSlides(slides);
@@ -109,6 +115,70 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const showToast = (message: string) => {
     setSaveToast(message);
     setTimeout(() => setSaveToast(null), 3000);
+  };
+
+  // Download complete store backup as JSON
+  const handleDownloadBackup = async () => {
+    try {
+      const data = await api.getBackupData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `backup-tienda-lumea-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('¡Copia de seguridad descargada exitosamente en tu PC!');
+    } catch (err: any) {
+      alert('Error al descargar copia de seguridad: ' + err.message);
+    }
+  };
+
+  // Restore store backup from JSON file
+  const handleRestoreBackupFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await api.restoreBackup(parsed);
+      if (res.products) {
+        setLocalProducts(res.products);
+        onProductsUpdated(res.products);
+      }
+      if (res.slides) {
+        setLocalSlides(res.slides);
+        onSlidesUpdated(res.slides);
+      }
+      if (res.cms) {
+        setLocalCms(res.cms);
+        onCmsUpdated(res.cms);
+      }
+      if (res.orders) {
+        setLocalOrders(res.orders);
+        onOrdersUpdated(res.orders);
+      }
+      showToast('¡Copia de seguridad restaurada exitosamente!');
+    } catch (err: any) {
+      alert('Error al restaurar archivo: ' + err.message);
+    }
+    e.target.value = '';
+  };
+
+  // Sync products and settings directly with src/data/initialData.ts for permanent Git & Render deployment
+  const handleSyncCode = async () => {
+    setIsSaving(true);
+    try {
+      const res = await api.syncCode();
+      showToast(res.message);
+      alert('¡Listo! Los productos actuales se guardaron en src/data/initialData.ts.\n\nAhora abre tu terminal y ejecuta:\n1. git add .\n2. git commit -m "Actualizar catálogo de productos"\n3. git push\n\nAl hacer esto, Render compilará siempre con todos tus productos nuevos y nunca se perderán.');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Global Save CMS
@@ -331,6 +401,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadBackup}
+              className="hidden sm:flex items-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
+              title="Descargar respaldo completo JSON a tu PC"
+            >
+              <Download className="w-3.5 h-3.5 text-[#FF80BF]" />
+              <span>Backup JSON</span>
+            </button>
             <button
               onClick={onClose}
               className="p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800 transition-colors"
@@ -866,15 +944,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <span>Catálogo & Marcas del Laboratorio ({localProducts.length} productos en total)</span>
                   </h3>
                   <p className="text-[11px] text-neutral-400">
-                    Administrá productos de cada marca (H2Derm, Mimitos, SoftCare, Le Salon), 3 fotos por producto, reels, precios, stock y categorías.
+                    Administrá productos de cada marca (H2Derm, LUMÉA, Mimitos, SoftCare, Le Salon), 3 fotos por producto, reels, precios, stock y categorías.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* Hidden File Input for Restoring Backup */}
+                <input
+                  type="file"
+                  ref={restoreInputRef}
+                  accept=".json"
+                  onChange={handleRestoreBackupFile}
+                  className="hidden"
+                />
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Button to sync with src/data/initialData.ts */}
+                  <button
+                    type="button"
+                    onClick={handleSyncCode}
+                    disabled={isSaving}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
+                    title="Guarda los productos actuales en src/data/initialData.ts para que nunca se borren en Render"
+                  >
+                    <FileCode className="w-4 h-4 text-indigo-200" />
+                    <span>Guardar en Git</span>
+                  </button>
+
+                  {/* Button to download JSON backup */}
+                  <button
+                    type="button"
+                    onClick={handleDownloadBackup}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                    title="Descargar copia de seguridad .json a tu PC"
+                  >
+                    <Download className="w-4 h-4 text-[#FF80BF]" />
+                    <span>Backup JSON</span>
+                  </button>
+
+                  {/* Button to restore from JSON file */}
+                  <button
+                    type="button"
+                    onClick={() => restoreInputRef.current?.click()}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                    title="Subir y restaurar respaldo .json"
+                  >
+                    <Upload className="w-4 h-4 text-emerald-400" />
+                    <span>Restaurar</span>
+                  </button>
+
                   <button
                     onClick={handleCreateProduct}
                     disabled={isSaving}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Nuevo Producto</span>
@@ -884,19 +1005,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <button
                       onClick={() => handleSaveProduct(selectedProduct)}
                       disabled={isSaving}
-                      className="bg-[#E6007E] hover:bg-[#C9006B] text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
+                      className="bg-[#E6007E] hover:bg-[#C9006B] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
                     >
                       <Save className="w-4 h-4" />
-                      <span>{isSaving ? 'Guardando...' : 'Guardar Producto'}</span>
+                      <span>{isSaving ? 'Guardando...' : 'Guardar'}</span>
                     </button>
                   )}
+                </div>
+              </div>
+
+              {/* Persistence Explainer Banner */}
+              <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-3.5 text-xs text-amber-200 flex items-start gap-3 shadow-inner">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-amber-300 text-xs">
+                      ¿Por qué Render borra los productos nuevos si vuelves a hacer deploy?
+                    </p>
+                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono">
+                      Persistencia en Render
+                    </span>
+                  </div>
+                  <p className="text-neutral-300 text-[11px] leading-relaxed">
+                    Render (en planes gratuitos) tiene un disco <strong>temporal</strong>: cada vez que haces un nuevo deploy desde Git, Render borra el contenedor anterior y arranca desde cero con los archivos del repositorio.
+                  </p>
+                  <div className="bg-black/40 rounded-xl p-2.5 border border-amber-500/20 text-[11px] space-y-1">
+                    <p className="font-semibold text-white">✅ Cómo hacer que tus productos nuevos NUNCA se borren:</p>
+                    <ol className="list-decimal list-inside text-neutral-300 space-y-0.5">
+                      <li>Haz clic arriba en el botón violeta <strong className="text-indigo-300">"Guardar en Git"</strong> (esto actualiza el archivo de código <code className="text-amber-200 bg-neutral-800 px-1 rounded">src/data/initialData.ts</code>).</li>
+                      <li>En tu terminal ejecuta: <code className="text-emerald-400 bg-neutral-900 px-1 py-0.5 rounded font-mono">git add . && git commit -m "Nuevos productos" && git push</code></li>
+                      <li>¡Listo! Al estar integrados en el código de Git, Render compilará siempre con todos tus productos para siempre.</li>
+                    </ol>
+                  </div>
                 </div>
               </div>
 
               {/* Brand filter tabs */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-neutral-800">
                 <span className="text-[11px] font-bold text-neutral-400 mr-2 shrink-0">Filtrar Marca:</span>
-                {(['Todas', 'H2Derm', 'Mimitos', 'SoftCare', 'Le Salon'] as const).map((brandName) => {
+                {(['Todas', 'H2Derm', 'LUMÉA', 'Mimitos', 'SoftCare', 'Le Salon'] as const).map((brandName) => {
                   const count =
                     brandName === 'Todas'
                       ? localProducts.length
@@ -1280,6 +1427,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E] font-bold"
                         >
                           <option value="H2Derm">H2Derm</option>
+                          <option value="LUMÉA">LUMÉA</option>
                           <option value="Mimitos">Mimitos</option>
                           <option value="SoftCare">SoftCare</option>
                           <option value="Le Salon">Le Salon</option>
@@ -1729,7 +1877,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     <div className="sm:col-span-2">
                       <label className="block text-neutral-400 text-[11px] mb-1 font-bold">
-                        Texto Informativo Principal (Tu sueño se puede hacer realidad...)
+                        Texto Informativo Principal ("Tu sueño se puede hacer realidad...")
                       </label>
                       <textarea
                         rows={2}
