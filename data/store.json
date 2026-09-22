@@ -654,6 +654,15 @@
   ],
   "pixelLogs": [
     {
+      "id": "pix-1790117329711",
+      "eventName": "PageView",
+      "timestamp": "2026-09-22T22:48:49.711Z",
+      "data": {
+        "url": "http://localhost:3000/",
+        "referrer": ""
+      }
+    },
+    {
       "id": "pix-1790108932312",
       "eventName": "PageView",
       "timestamp": "2026-09-22T20:28:52.312Z",
@@ -2488,15 +2497,6 @@
       "id": "pix-1789765479466",
       "eventName": "PageView",
       "timestamp": "2026-09-18T21:04:39.466Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1789765475814",
-      "eventName": "PageView",
-      "timestamp": "2026-09-18T21:04:35.814Z",
       "data": {
         "url": "http://localhost:3000/",
         "referrer": "http://localhost:3000/"

@@ -34,7 +34,9 @@ import {
   Image as ImageIcon,
   Download,
   FileCode,
-  Database
+  Database,
+  Clipboard,
+  History
 } from 'lucide-react';
 import { Product, CarouselSlide, StoreCMS, Order, OrderStatus, PixelEventLog } from '../types';
 import { api } from '../services/api';
@@ -97,8 +99,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [pushBody, setPushBody] = useState('');
   const [pushSuccess, setPushSuccess] = useState(false);
 
-  // Backup and restore ref
+  // Backup and restore state
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [browserBackup, setBrowserBackup] = useState<{ timestamp: string; count: number; products: Product[] } | null>(null);
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pastedJson, setPastedJson] = useState('');
+
+  // Check browser backup on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('lumea_catalog_backup');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
+          setBrowserBackup(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Continuously persist current products to browser localStorage as indestructible safety net
+  useEffect(() => {
+    if (localProducts.length > 0) {
+      try {
+        localStorage.setItem('lumea_catalog_backup', JSON.stringify({
+          timestamp: new Date().toISOString(),
+          count: localProducts.length,
+          products: localProducts
+        }));
+      } catch (err) {
+        console.error('Error saving local backup:', err);
+      }
+    }
+  }, [localProducts]);
 
   useEffect(() => {
     setLocalCms(cms);
@@ -168,6 +201,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       alert('Error al restaurar archivo: ' + err.message);
     }
     e.target.value = '';
+  };
+
+  // Restore from browser localStorage backup
+  const handleRestoreFromBrowser = async () => {
+    if (!browserBackup || !browserBackup.products || browserBackup.products.length === 0) {
+      alert('No se encontró respaldo en este navegador.');
+      return;
+    }
+    if (!confirm(`¿Restaurar los ${browserBackup.products.length} productos guardados en la memoria de este navegador?`)) {
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await api.restoreBackup({ products: browserBackup.products });
+      if (res.products) {
+        setLocalProducts(res.products);
+        onProductsUpdated(res.products);
+      }
+      showToast(`¡${browserBackup.products.length} productos restaurados desde tu navegador!`);
+    } catch (err: any) {
+      alert('Error al restaurar: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Restore from pasted JSON string
+  const handleRestorePastedJson = async () => {
+    if (!pastedJson.trim()) return;
+    setIsSaving(true);
+    try {
+      let parsed = JSON.parse(pastedJson);
+      // Support array of products directly or wrapped in { products: [...] }
+      if (Array.isArray(parsed)) {
+        parsed = { products: parsed };
+      }
+      const res = await api.restoreBackup(parsed);
+      if (res.products) {
+        setLocalProducts(res.products);
+        onProductsUpdated(res.products);
+      }
+      setShowPasteModal(false);
+      setPastedJson('');
+      showToast('¡Productos restaurados exitosamente desde el JSON pegado!');
+    } catch (err: any) {
+      alert('Error: el texto ingresado no es un JSON válido o no contiene productos. ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Sync products and settings directly with src/data/initialData.ts for permanent Git & Render deployment
@@ -1071,6 +1153,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <span>Guardar en Git</span>
                   </button>
 
+                  {/* Button to restore from browser local cache */}
+                  {browserBackup && browserBackup.products && browserBackup.products.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRestoreFromBrowser}
+                      disabled={isSaving}
+                      className="bg-sky-600 hover:bg-sky-500 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
+                      title={`Restaurar ${browserBackup.products.length} productos guardados en la memoria de este navegador`}
+                    >
+                      <History className="w-4 h-4 text-sky-200" />
+                      <span>Caché Navegador ({browserBackup.products.length})</span>
+                    </button>
+                  )}
+
+                  {/* Button to paste JSON */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPasteModal(true)}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                    title="Pegar JSON de productos directamente"
+                  >
+                    <Clipboard className="w-4 h-4 text-amber-400" />
+                    <span>Pegar JSON</span>
+                  </button>
+
                   {/* Button to download JSON backup */}
                   <button
                     type="button"
@@ -1087,10 +1194,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="button"
                     onClick={() => restoreInputRef.current?.click()}
                     className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                    title="Subir y restaurar respaldo .json"
+                    title="Subir y restaurar archivo .json"
                   >
                     <Upload className="w-4 h-4 text-emerald-400" />
-                    <span>Restaurar</span>
+                    <span>Subir .json</span>
                   </button>
 
                   <button
@@ -1114,6 +1221,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* Browser Backup Alert Banner if backup has products */}
+              {browserBackup && browserBackup.products && browserBackup.products.length > 0 && browserBackup.products.length !== localProducts.length && (
+                <div className="bg-sky-950/60 border border-sky-500/50 rounded-2xl p-3.5 text-xs text-sky-200 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+                  <div className="flex items-center gap-2.5">
+                    <History className="w-5 h-5 text-sky-400 shrink-0" />
+                    <div>
+                      <p className="font-bold text-sky-200">
+                        Memoria del navegador encontrada: {browserBackup.products.length} productos guardados el {new Date(browserBackup.timestamp).toLocaleTimeString()}
+                      </p>
+                      <p className="text-[11px] text-sky-300/80">
+                        Si tus productos desaparecieron tras un deploy o reinicio, haz clic aquí para restaurarlos en 1 segundo.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRestoreFromBrowser}
+                    disabled={isSaving}
+                    className="bg-sky-500 hover:bg-sky-400 text-neutral-950 font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shrink-0 shadow-md transition-all"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Restaurar {browserBackup.products.length} Productos</span>
+                  </button>
+                </div>
+              )}
 
               {/* Persistence Explainer Banner */}
               <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-3.5 text-xs text-amber-200 flex items-start gap-3 shadow-inner">
@@ -2699,6 +2832,55 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           )}
 
         </div>
+
+        {/* Modal for pasting JSON directly */}
+        {showPasteModal && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+            <div className="bg-neutral-900 border border-neutral-700 rounded-2xl p-6 max-w-xl w-full space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <Clipboard className="w-5 h-5 text-amber-400" />
+                  <span>Pegar JSON de Respaldo</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowPasteModal(false)}
+                  className="text-neutral-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-xs text-neutral-300">
+                Pega aquí tu lista de productos en formato JSON (por ejemplo si la copiaste del archivo <code className="bg-neutral-800 text-amber-300 px-1 py-0.5 rounded font-mono">store.json</code> o de un backup):
+              </p>
+              <textarea
+                value={pastedJson}
+                onChange={(e) => setPastedJson(e.target.value)}
+                placeholder='[ { "id": "prod-1", "name": "...", "price": 25000, ... } ]'
+                rows={10}
+                className="w-full bg-neutral-950 border border-neutral-800 rounded-xl p-3 text-xs font-mono text-emerald-300 focus:outline-none focus:border-amber-500"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPasteModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-neutral-400 hover:text-white"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRestorePastedJson}
+                  disabled={!pastedJson.trim() || isSaving}
+                  className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Restaurar Productos Ahora</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
