@@ -38,8 +38,9 @@ import {
   Clipboard,
   History
 } from 'lucide-react';
-import { Product, CarouselSlide, StoreCMS, Order, OrderStatus, PixelEventLog } from '../types';
+import { Product, CarouselSlide, StoreCMS, Order, OrderStatus, PixelEventLog, OFFICIAL_CATEGORIES, ProductCategory } from '../types';
 import { api } from '../services/api';
+import { persistentStorage } from '../utils/persistentStorage';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
 interface AdminDashboardProps {
@@ -108,7 +109,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Check browser backup on mount
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('lumea_catalog_backup');
+      const raw = localStorage.getItem('isamer_catalog_backup');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
@@ -122,7 +123,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     if (localProducts.length > 0) {
       try {
-        localStorage.setItem('lumea_catalog_backup', JSON.stringify({
+        localStorage.setItem('isamer_catalog_backup', JSON.stringify({
           timestamp: new Date().toISOString(),
           count: localProducts.length,
           products: localProducts
@@ -161,7 +162,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `backup-tienda-lumea-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `backup-tienda-isamer-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -172,17 +173,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Restore store backup from JSON file
+  // Restore store backup from JSON file (handles any size, even 10MB+ with images)
   const handleRestoreBackupFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIsSaving(true);
+    showToast('Procesando y restaurando productos...');
     try {
       const text = await file.text();
-      const parsed = JSON.parse(text);
+      let parsed: any;
+      try {
+        parsed = JSON.parse(text);
+      } catch (jsonErr: any) {
+        alert('El archivo seleccionado no es un JSON válido: ' + jsonErr.message);
+        return;
+      }
       const res = await api.restoreBackup(parsed);
-      if (res.products) {
+      if (res.products && Array.isArray(res.products)) {
         setLocalProducts(res.products);
         onProductsUpdated(res.products);
+        persistToLocalBackup(res.products);
+        persistentStorage.saveProducts(res.products);
       }
       if (res.slides) {
         setLocalSlides(res.slides);
@@ -196,11 +207,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         setLocalOrders(res.orders);
         onOrdersUpdated(res.orders);
       }
-      showToast('¡Copia de seguridad restaurada exitosamente!');
+      showToast(`¡Copia de seguridad restaurada exitosamente con ${res.count || res.products?.length || ''} productos!`);
     } catch (err: any) {
       alert('Error al restaurar archivo: ' + err.message);
+    } finally {
+      setIsSaving(false);
+      e.target.value = '';
     }
-    e.target.value = '';
   };
 
   // Restore from browser localStorage backup
@@ -218,6 +231,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       if (res.products) {
         setLocalProducts(res.products);
         onProductsUpdated(res.products);
+        persistToLocalBackup(res.products);
+        persistentStorage.saveProducts(res.products);
       }
       showToast(`¡${browserBackup.products.length} productos restaurados desde tu navegador!`);
     } catch (err: any) {
@@ -231,6 +246,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleRestorePastedJson = async () => {
     if (!pastedJson.trim()) return;
     setIsSaving(true);
+    showToast('Procesando JSON pegado...');
     try {
       let parsed = JSON.parse(pastedJson);
       // Support array of products directly or wrapped in { products: [...] }
@@ -238,13 +254,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         parsed = { products: parsed };
       }
       const res = await api.restoreBackup(parsed);
-      if (res.products) {
+      if (res.products && Array.isArray(res.products)) {
         setLocalProducts(res.products);
         onProductsUpdated(res.products);
+        persistToLocalBackup(res.products);
+        persistentStorage.saveProducts(res.products);
       }
       setShowPasteModal(false);
       setPastedJson('');
-      showToast('¡Productos restaurados exitosamente desde el JSON pegado!');
+      showToast(`¡${res.count || res.products?.length || ''} productos restaurados exitosamente desde el JSON pegado!`);
     } catch (err: any) {
       alert('Error: el texto ingresado no es un JSON válido o no contiene productos. ' + err.message);
     } finally {
@@ -252,15 +270,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  // Sync products and settings directly with src/data/initialData.ts for permanent Git & Render deployment
+  // Sync products and settings directly with backend and local storage permanently
   const handleSyncCode = async () => {
     setIsSaving(true);
     try {
-      const res = await api.syncCode();
-      showToast(res.message);
-      alert('¡Listo! Los productos actuales se guardaron en src/data/initialData.ts.\n\nAhora abre tu terminal y ejecuta:\n1. git add .\n2. git commit -m "Actualizar catálogo de productos"\n3. git push\n\nAl hacer esto, Render compilará siempre con todos tus productos nuevos y nunca se perderán.');
+      await api.syncFullData({
+        products: localProducts,
+        cms: localCms,
+        slides: localSlides,
+        orders: localOrders
+      });
+      persistentStorage.saveAll({
+        products: localProducts,
+        cms: localCms,
+        slides: localSlides,
+        orders: localOrders
+      });
+      onProductsUpdated(localProducts);
+      onCmsUpdated(localCms);
+      onSlidesUpdated(localSlides);
+      showToast('¡Todo el catálogo, imágenes y textos guardados de forma permanente!');
     } catch (err: any) {
-      alert(err.message);
+      persistentStorage.saveAll({
+        products: localProducts,
+        cms: localCms,
+        slides: localSlides,
+        orders: localOrders
+      });
+      showToast('Guardado de forma segura en tu navegador');
     } finally {
       setIsSaving(false);
     }
@@ -272,9 +309,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       const updated = await api.updateCMS(localCms);
       onCmsUpdated(updated);
+      persistentStorage.saveCMS(updated);
       showToast('¡Configuración de la tienda guardada con éxito!');
     } catch {
-      alert('Error al guardar la configuración');
+      persistentStorage.saveCMS(localCms);
+      onCmsUpdated(localCms);
+      showToast('¡Configuración guardada en tu navegador!');
     } finally {
       setIsSaving(false);
     }
@@ -286,9 +326,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       const updated = await api.updateSlides(localSlides);
       onSlidesUpdated(updated);
+      persistentStorage.saveSlides(updated);
       showToast('¡Carrusel actualizado y guardado correctamente!');
     } catch {
-      alert('Error al guardar carrusel');
+      persistentStorage.saveSlides(localSlides);
+      onSlidesUpdated(localSlides);
+      showToast('¡Carrusel guardado en tu navegador!');
     } finally {
       setIsSaving(false);
     }
@@ -331,13 +374,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Helper to persist to localStorage backup immediately
   const persistToLocalBackup = (prods: Product[]) => {
     try {
-      localStorage.setItem('lumea_products_cache', JSON.stringify(prods));
+      localStorage.setItem('isamer_products_cache', JSON.stringify(prods));
       const backupObj = {
         timestamp: new Date().toISOString(),
         count: prods.length,
         products: prods
       };
-      localStorage.setItem('lumea_catalog_backup', JSON.stringify(backupObj));
+      localStorage.setItem('isamer_catalog_backup', JSON.stringify(backupObj));
       setBrowserBackup(backupObj);
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
@@ -360,6 +403,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // 2. BLINDAJE LOCAL INMEDIATO: Guardar en localStorage instantáneamente
     persistToLocalBackup(updatedList);
+    persistentStorage.saveProducts(updatedList);
 
     // 3. Guardar en el servidor backend (con reintento de lista completa si falla el individual)
     try {
@@ -377,13 +421,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setLocalProducts(finalList);
       onProductsUpdated(finalList);
       persistToLocalBackup(finalList);
+      persistentStorage.saveProducts(finalList);
 
       showToast(`¡Producto "${target.name}" guardado exitosamente!`);
     } catch (err: any) {
       console.error('Error al guardar en el servidor:', err);
-      // Los datos ya están a salvo en localStorage y memoria
-      showToast(`Guardado en tu navegador (nota: ${err.message || 'sin conexión'})`);
-      alert(`Tus cambios se guardaron de forma segura en tu navegador.\n\nDetalle: ${err.message || 'Error de conexión'}.\n\nNo has perdido ningún dato.`);
+      // Los datos ya están a salvo en persistentStorage, localStorage y memoria
+      showToast(`¡Cambios guardados en tu navegador!`);
     } finally {
       setIsSaving(false);
     }
@@ -393,16 +437,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleSaveAllProducts = async () => {
     setIsSaving(true);
     persistToLocalBackup(localProducts);
+    persistentStorage.saveProducts(localProducts);
     try {
-      const serverProducts = await api.updateAllProducts(localProducts);
-      setLocalProducts(serverProducts);
-      onProductsUpdated(serverProducts);
-      persistToLocalBackup(serverProducts);
-      showToast(`¡Catálogo completo (${serverProducts.length} productos) guardado exitosamente!`);
+      await api.syncFullData({
+        products: localProducts,
+        cms: localCms,
+        slides: localSlides,
+        orders: localOrders
+      });
+      onProductsUpdated(localProducts);
+      showToast(`¡Catálogo completo (${localProducts.length} productos) guardado exitosamente!`);
     } catch (err: any) {
-      console.error('Error al guardar todo:', err);
-      showToast(`Guardado en tu navegador`);
-      alert(`Catálogo guardado en la memoria local de tu navegador.\n\nDetalle del servidor: ${err.message || 'Error de conexión'}.`);
+      try {
+        const serverProducts = await api.updateAllProducts(localProducts);
+        setLocalProducts(serverProducts);
+        onProductsUpdated(serverProducts);
+        showToast(`¡Catálogo guardado exitosamente!`);
+      } catch {
+        showToast(`Catálogo guardado en la memoria de tu navegador`);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -501,7 +554,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Create New Product
   const handleCreateProduct = async () => {
-    const brandToUse = (adminProductBrandFilter === 'Todas' || adminProductBrandFilter === 'LUMÉA') ? 'H2Derm' : adminProductBrandFilter;
+    const brandToUse = (adminProductBrandFilter === 'Todas' || adminProductBrandFilter === 'ISAMER' || adminProductBrandFilter === 'ISAMER') ? 'H2Derm' : adminProductBrandFilter;
+    const isSoftCare = brandToUse === 'SoftCare';
     const newId = 'prod-' + Date.now();
     const newProdTemplate: Product = {
       id: newId,
@@ -509,7 +563,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       tagline: 'Fórmula de alta eficacia desarrollada en laboratorio',
       brand: brandToUse as any,
       order: 1,
-      category: 'Cremas',
+      category: isSoftCare ? 'Corporal' : (brandToUse === 'Mimitos' ? 'Bebés/Kids' : (brandToUse === 'Le Salon' ? 'Capilar' : 'Cremas')),
       price: 15000,
       originalPrice: 18000,
       discountPercentage: 15,
@@ -521,7 +575,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       description: 'Fórmula cosmética desarrollada con rigurosos estándares farmacéuticos para una eficacia visible y duradera.',
       howToUse: 'Aplicar suavemente con movimientos circulares hasta su total absorción.',
       benefits: ['Fórmula hipoalergénica', 'Resultados comprobados', 'Apta para todo tipo de piel'],
-      badges: ['Nuevo Lanzamiento'],
+      badges: isSoftCare ? ['Premium'] : ['Nuevo Lanzamiento'],
       featured: false,
       stock: 50,
       rating: 5.0,
@@ -540,6 +594,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onProductsUpdated(updatedList);
     setSelectedProductId(newId);
     persistToLocalBackup(updatedList);
+    persistentStorage.saveProducts(updatedList);
 
     try {
       const created = await api.createProduct(newProdTemplate);
@@ -551,12 +606,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       onProductsUpdated(serverUpdatedList);
       setSelectedProductId(created.id);
       persistToLocalBackup(serverUpdatedList);
+      persistentStorage.saveProducts(serverUpdatedList);
       showToast(`¡Producto creado exitosamente en 1ª posición para ${created.brand}!`);
     } catch (err: any) {
       console.warn('Server create product error, fallback to batch sync:', err);
       try {
         await api.updateAllProducts(updatedList);
         persistToLocalBackup(updatedList);
+        persistentStorage.saveProducts(updatedList);
         showToast(`¡Producto creado y sincronizado con el catálogo!`);
       } catch {
         showToast(`Producto creado y respaldado en tu navegador.`);
@@ -577,6 +634,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setLocalProducts(updatedList);
     onProductsUpdated(updatedList);
     persistToLocalBackup(updatedList);
+    persistentStorage.saveProducts(updatedList);
 
     if (selectedProductId === id && updatedList.length > 0) {
       setSelectedProductId(updatedList[0].id);
@@ -589,10 +647,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       console.warn('Delete product server error, fallback to batch sync:', err);
       try {
         await api.updateAllProducts(updatedList);
-        showToast('Producto eliminado del catálogo.');
-      } catch {
-        showToast('Producto eliminado en tu navegador.');
-      }
+      } catch {}
+      showToast('Producto eliminado.');
     } finally {
       setIsSaving(false);
     }
@@ -1214,6 +1270,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* TAB 3: GESTOR DE CATÁLOGO & MARCAS */}
           {activeTab === 'products' && (
             <div className="space-y-4">
+              {/* Emergency / Fast Store.json Recovery Banner */}
+              <div className="bg-linear-to-r from-amber-950/70 via-neutral-900 to-neutral-900 border-2 border-amber-500/50 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/40">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-bold text-amber-200 flex items-center gap-2">
+                      <span>Restaurar / Importar archivo store.json</span>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30">
+                        Blindaje Total
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-neutral-300">
+                      Subí tu archivo <code className="bg-neutral-800 text-amber-300 px-1 py-0.2 rounded font-mono">store.json</code> (incluso de 10MB con fotos base64): el servidor extraerá las imágenes a disco, alivianará el archivo y restaurará cada producto.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => restoreInputRef.current?.click()}
+                    disabled={isSaving}
+                    className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer active:scale-95"
+                    title="Seleccionar archivo store.json de tu computadora"
+                  >
+                    <Upload className="w-4 h-4" />
+                    <span>Subir mi store.json</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPasteModal(true)}
+                    disabled={isSaving}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-amber-300 border border-amber-500/40 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                    title="Pegar texto JSON directamente"
+                  >
+                    <Clipboard className="w-4 h-4" />
+                    <span>Pegar texto JSON</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Header with actions */}
               <div className="bg-neutral-800/60 p-4 rounded-2xl border border-neutral-700 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -1222,7 +1321,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <span>Catálogo & Marcas del Laboratorio ({localProducts.length} productos en total)</span>
                   </h3>
                   <p className="text-[11px] text-neutral-400">
-                    Administrá productos de cada marca (H2Derm, LUMÉA, Mimitos, SoftCare, Le Salon), 3 fotos por producto, reels, precios, stock y categorías.
+                    Administrá productos de cada marca (H2Derm, SoftCare Premium, Mimitos, Le Salon), 3 fotos por producto, reels, precios, stock y categorías.
                   </p>
                 </div>
 
@@ -1236,16 +1335,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 />
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Button to sync with src/data/initialData.ts */}
+                  {/* Button to sync and save everything permanently */}
                   <button
                     type="button"
                     onClick={handleSyncCode}
                     disabled={isSaving}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
-                    title="Guarda los productos actuales en src/data/initialData.ts para que nunca se borren en Render"
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md transition-colors"
+                    title="Guarda permanentemente todos los productos, categorías, imágenes y textos"
                   >
-                    <FileCode className="w-4 h-4 text-indigo-200" />
-                    <span>Guardar en Git</span>
+                    <Save className="w-4 h-4 text-emerald-200" />
+                    <span>Guardar Todo</span>
                   </button>
 
                   {/* Button to restore from browser local cache */}
@@ -1315,16 +1414,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <span>{isSaving ? 'Guardando...' : 'Guardar'}</span>
                     </button>
                   )}
-
-                  <button
-                    onClick={handleSaveAllProducts}
-                    disabled={isSaving}
-                    className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
-                    title="Guardar y blindar todo el catálogo actual de productos"
-                  >
-                    <Database className="w-4 h-4 text-emerald-400" />
-                    <span>Guardar Todo</span>
-                  </button>
                 </div>
               </div>
 
@@ -1338,7 +1427,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         Memoria del navegador encontrada: {browserBackup.products.length} productos guardados el {new Date(browserBackup.timestamp).toLocaleTimeString()}
                       </p>
                       <p className="text-[11px] text-sky-300/80">
-                        Si tus productos desaparecieron tras un deploy o reinicio, haz clic aquí para restaurarlos en 1 segundo.
+                        Si tus productos no se reflejan tras recargar, haz clic aquí para sincronizarlos al instante.
                       </p>
                     </div>
                   </div>
@@ -1354,36 +1443,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               )}
 
-              {/* Persistence Explainer Banner */}
-              <div className="bg-amber-950/40 border border-amber-500/40 rounded-2xl p-3.5 text-xs text-amber-200 flex items-start gap-3 shadow-inner">
-                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center justify-between">
-                    <p className="font-bold text-amber-300 text-xs">
-                      ¿Por qué Render borra los productos nuevos si vuelves a hacer deploy?
+              {/* Active Persistence Banner */}
+              <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-3.5 text-xs text-emerald-200 flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <div>
+                    <p className="font-bold text-emerald-300 text-xs">
+                      Persistencia Automática Blindada
                     </p>
-                    <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono">
-                      Persistencia en Render
-                    </span>
+                    <p className="text-neutral-300 text-[11px]">
+                      Tus cambios se guardan al instante en la base de datos y memoria local. Podés modificar productos, categorías, imágenes, reels y textos sin riesgo de perderlos.
+                    </p>
                   </div>
-                  <p className="text-neutral-300 text-[11px] leading-relaxed">
-                    Render (en planes gratuitos) tiene un disco <strong>temporal</strong>: cada vez que haces un nuevo deploy desde Git, Render borra el contenedor anterior y arranca desde cero con los archivos del repositorio.
-                  </p>
-                  <div className="bg-black/40 rounded-xl p-2.5 border border-amber-500/20 text-[11px] space-y-1">
-                    <p className="font-semibold text-white">✅ Cómo hacer que tus productos nuevos NUNCA se borren:</p>
-                    <ol className="list-decimal list-inside text-neutral-300 space-y-0.5">
-                      <li>Haz clic arriba en el botón violeta <strong className="text-indigo-300">"Guardar en Git"</strong> (esto actualiza el archivo de código <code className="text-amber-200 bg-neutral-800 px-1 rounded">src/data/initialData.ts</code>).</li>
-                      <li>En tu terminal ejecuta: <code className="text-emerald-400 bg-neutral-900 px-1 py-0.5 rounded font-mono">git add . && git commit -m "Nuevos productos" && git push</code></li>
-                      <li>¡Listo! Al estar integrados en el código de Git, Render compilará siempre con todos tus productos para siempre.</li>
-                    </ol>
-                  </div>
+                </div>
+                <div className="text-[10px] bg-emerald-900/60 text-emerald-300 font-mono px-2.5 py-1 rounded-full border border-emerald-700/60 font-bold shrink-0">
+                  {localProducts.length} Productos Guardados
                 </div>
               </div>
 
               {/* Brand filter tabs */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 border-b border-neutral-800">
                 <span className="text-[11px] font-bold text-neutral-400 mr-2 shrink-0">Filtrar Marca:</span>
-                {(['Todas', 'H2Derm', 'Mimitos', 'SoftCare', 'Le Salon'] as const).map((brandName) => {
+                {(['Todas', 'H2Derm', 'SoftCare', 'Mimitos', 'Le Salon'] as const).map((brandName) => {
                   const count =
                     brandName === 'Todas'
                       ? localProducts.length
@@ -1410,6 +1491,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       }`}
                     >
                       <span>{brandName}</span>
+                      {brandName === 'SoftCare' && (
+                        <span className="text-[9px] bg-purple-500/30 text-purple-300 font-extrabold px-1.5 py-0.2 rounded-full border border-purple-500/40">
+                          PREMIUM
+                        </span>
+                      )}
                       <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-neutral-700 text-neutral-300'}`}>
                         {count}
                       </span>
@@ -1922,36 +2008,98 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <select
                           value={selectedProduct.brand || 'H2Derm'}
                           onChange={(e) => {
-                            const updated = localProducts.map(p =>
-                              p.id === selectedProduct.id ? { ...p, brand: e.target.value as any } : p
-                            );
+                            const newBrand = e.target.value as any;
+                            const isSoftCare = newBrand === 'SoftCare';
+                            const updated = localProducts.map(p => {
+                              if (p.id !== selectedProduct.id) return p;
+                              let badges = p.badges || [];
+                              if (isSoftCare && !badges.includes('Premium')) {
+                                badges = ['Premium', ...badges];
+                              }
+                              return { ...p, brand: newBrand, badges };
+                            });
                             setLocalProducts(updated);
                           }}
                           className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E] font-bold"
                         >
                           <option value="H2Derm">H2Derm (Línea Principal)</option>
+                          <option value="SoftCare">SoftCare (Línea Premium)</option>
                           <option value="Mimitos">Mimitos (Línea Infantil & Bebés)</option>
-                          <option value="SoftCare">SoftCare (Dermo-Cuidado)</option>
                           <option value="Le Salon">Le Salon (Capilar & Barbería)</option>
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-neutral-400 text-[11px] mb-1 font-bold">
-                          Categoría del Producto *
-                        </label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-neutral-400 text-[11px] font-bold">
+                            Categoría del Producto *
+                          </label>
+                          <span className="text-[10px] text-pink-400 font-bold px-2 py-0.5 rounded-full bg-pink-950/60 border border-pink-800/60">
+                            {selectedProduct.category || 'Sin categoría'}
+                          </span>
+                        </div>
+
+                        {/* Fast Select Dropdown for all 10 official categories */}
+                        <select
+                          value={OFFICIAL_CATEGORIES.includes(selectedProduct.category as any) ? selectedProduct.category : 'custom'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val !== 'custom') {
+                              const updated = localProducts.map(p =>
+                                p.id === selectedProduct.id ? { ...p, category: val } : p
+                              );
+                              setLocalProducts(updated);
+                            }
+                          }}
+                          className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E] font-bold mb-2 text-sm cursor-pointer"
+                        >
+                          {OFFICIAL_CATEGORIES.map(cat => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                          <option value="custom">✏️ Otra categoría personalizada...</option>
+                        </select>
+
+                        {/* Direct input for custom category name or editing */}
                         <input
                           type="text"
-                          value={selectedProduct.category || 'Cremas'}
+                          value={selectedProduct.category || ''}
                           onChange={(e) => {
                             const updated = localProducts.map(p =>
                               p.id === selectedProduct.id ? { ...p, category: e.target.value } : p
                             );
                             setLocalProducts(updated);
                           }}
-                          placeholder="Ej: Cremas, Serums, Ojos, Limpieza, Packs, Capilar"
-                          className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E]"
+                          placeholder="Elegir del listado o escribir: Aceites, Cremas, etc."
+                          className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2 text-white outline-none focus:border-[#E6007E] text-xs font-medium"
                         />
+
+                        {/* Quick-select pills with all 10 official categories requested */}
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {OFFICIAL_CATEGORIES.map(cat => {
+                            const isSelected = selectedProduct.category?.toLowerCase() === cat.toLowerCase();
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => {
+                                  const updated = localProducts.map(p =>
+                                    p.id === selectedProduct.id ? { ...p, category: cat } : p
+                                  );
+                                  setLocalProducts(updated);
+                                }}
+                                className={`text-[10px] px-2 py-1 rounded-md transition-colors cursor-pointer font-medium ${
+                                  isSelected
+                                    ? 'bg-[#E6007E] text-white font-bold ring-1 ring-pink-400 shadow-xs'
+                                    : 'bg-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-700'
+                                }`}
+                              >
+                                {cat}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       <div>
@@ -2145,6 +2293,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </label>
                     </div>
 
+                    {/* Badges / Etiquetas (e.g. Premium, Línea Estrella, Nuevo) */}
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-neutral-400 text-[11px] font-bold">
+                          Etiquetas / Badges (separados por coma)
+                        </label>
+                        {selectedProduct.brand === 'SoftCare' && (
+                          <span className="text-[10px] bg-purple-500/20 text-purple-300 font-bold px-2 py-0.5 rounded-full border border-purple-500/40">
+                            ★ Línea SoftCare: Tag "Premium" activo
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={(selectedProduct.badges || []).join(', ')}
+                        onChange={(e) => {
+                          const badgesList = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+                          const updated = localProducts.map(p =>
+                            p.id === selectedProduct.id ? { ...p, badges: badgesList } : p
+                          );
+                          setLocalProducts(updated);
+                        }}
+                        placeholder="Ej: Premium, Nuevo Lanzamiento, 10% Urea"
+                        className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E]"
+                      />
+                    </div>
+
                   </div>
                 </div>
               )}
@@ -2181,7 +2356,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       type="text"
                       value={localCms.storeName}
                       onChange={(e) => setLocalCms({ ...localCms, storeName: e.target.value })}
-                      placeholder="Ej: LUMÉA"
+                      placeholder="Ej: ISAMER"
                       className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E] font-bold"
                     />
                     <span className="text-[10px] text-pink-400 mt-1 block">

@@ -77,19 +77,19 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Logo / Brand Name */}
-          <div className="flex flex-col items-start sm:items-center">
-            <a href="#" className="flex flex-col group">
-              <span className="font-['Playfair_Display'] text-2xl sm:text-3xl font-extrabold tracking-tighter text-[#1C1917] group-hover:text-[#E6007E] transition-colors leading-none">
-                {cms.storeName}
+          <div className="flex flex-col items-start sm:items-center min-w-0">
+            <a href="#" className="flex flex-col group items-start sm:items-center">
+              <span className="font-['Playfair_Display'] text-xl sm:text-3xl font-extrabold tracking-tight text-[#1C1917] group-hover:text-[#E6007E] transition-colors leading-none truncate">
+                {cms.storeName || 'ISAMER'}
               </span>
-              <span className="text-[10px] sm:text-[11px] uppercase tracking-[0.25em] text-[#9E8B92] font-semibold mt-1">
-                {cms.storeTagline || 'Línea Rostro & Especial Día de la Madre'}
+              <span className="text-[10px] sm:text-[12px] uppercase tracking-[0.3em] text-[#9E8B92] font-bold mt-1">
+                {cms.storeTagline || 'LAB'}
               </span>
             </a>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-5 xl:gap-6 text-sm font-semibold text-[#3C3836]">
+          <nav className="hidden lg:flex items-center gap-4 xl:gap-5 text-sm font-semibold text-[#3C3836]">
             <button
               onClick={() => handleBrandClick('Todas')}
               className={`hover:text-[#E6007E] transition-colors relative py-1 cursor-pointer ${
@@ -97,6 +97,21 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               Línea Rostro 
+            </button>
+
+            {/* SoftCare -> Redirige a SoftCare (con tag Premium) */}
+            <button
+              id="nav-softcare-btn"
+              onClick={() => handleBrandClick('SoftCare')}
+              className={`hover:text-[#E6007E] transition-all flex items-center gap-1.5 py-1 px-2.5 rounded-full cursor-pointer ${
+                activeBrand === 'SoftCare'
+                  ? 'bg-purple-50 text-purple-700 font-bold border border-purple-200 shadow-xs'
+                  : 'text-[#3C3836] hover:bg-purple-50/70'
+              }`}
+              title="Línea SoftCare - Dermo-cuidado Premium"
+            >
+              <span>SoftCare</span>
+
             </button>
 
             {/* Cuidado Niños -> Redirige a Mimitos */}
@@ -112,9 +127,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Baby className="w-4 h-4 text-sky-500" />
               <span>Cuidado Niños</span>
-              <span className="text-[10px] bg-sky-100 text-sky-800 font-extrabold px-1.5 py-0.2 rounded-full">
-                Mimitos
-              </span>
             </button>
 
             {/* Barberías -> Redirige a Le Salón */}
@@ -130,9 +142,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Scissors className="w-4 h-4 text-amber-600" />
               <span>Barberías</span>
-              <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.2 rounded-full">
-                Le Salón
-              </span>
             </button>
 
             <a
@@ -152,35 +161,49 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* Action Icons */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Search Toggle */}
             <div className="relative">
-              {showSearchBar ? (
-                <div className="flex items-center bg-[#F7F3F4] rounded-full px-3 py-1.5 border border-[#E9D9DF] w-44 sm:w-60">
-                  <Search className="w-4 h-4 text-gray-500 mr-2 shrink-0" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => onSearchChange(e.target.value)}
-                    placeholder="Buscar base, corrector..."
-                    className="w-full bg-transparent text-xs text-gray-800 focus:outline-none"
-                    autoFocus
-                  />
-                  <button onClick={() => setShowSearchBar(false)} className="text-gray-400 hover:text-gray-600">
-                    <X className="w-3.5 h-3.5" />
+              {/* Desktop search bar */}
+              <div className="hidden sm:block">
+                {showSearchBar ? (
+                  <div className="flex items-center bg-[#F7F3F4] rounded-full px-3 py-1.5 border border-[#E9D9DF] w-48 sm:w-60">
+                    <Search className="w-4 h-4 text-gray-500 mr-2 shrink-0" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => onSearchChange(e.target.value)}
+                      placeholder="Buscar cremas, aceites..."
+                      className="w-full bg-transparent text-xs text-gray-800 focus:outline-none"
+                      autoFocus
+                    />
+                    <button onClick={() => setShowSearchBar(false)} className="text-gray-400 hover:text-gray-600">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    id="search-icon-btn"
+                    onClick={() => setShowSearchBar(true)}
+                    className="p-2 text-gray-700 hover:text-[#E6007E] rounded-full hover:bg-pink-50 transition-colors"
+                    aria-label="Buscar productos"
+                    title="Buscar en la tienda"
+                  >
+                    <Search className="w-5 h-5" />
                   </button>
-                </div>
-              ) : (
-                <button
-                  id="search-icon-btn"
-                  onClick={() => setShowSearchBar(true)}
-                  className="p-2 text-gray-700 hover:text-[#E6007E] rounded-full hover:bg-pink-50 transition-colors"
-                  aria-label="Buscar productos"
-                  title="Buscar en la tienda"
-                >
-                  <Search className="w-5 h-5" />
-                </button>
-              )}
+                )}
+              </div>
+
+              {/* Mobile search toggle button */}
+              <button
+                id="search-icon-btn-mobile"
+                onClick={() => setShowSearchBar(!showSearchBar)}
+                className="sm:hidden p-2 text-gray-700 hover:text-[#E6007E] rounded-full hover:bg-pink-50 transition-colors"
+                aria-label="Buscar productos"
+                title="Buscar en la tienda"
+              >
+                <Search className="w-5 h-5" />
+              </button>
             </div>
 
             {/* Quick WhatsApp contact */}
@@ -234,6 +257,34 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
+      {/* Mobile Search Bar Bar (when toggled on mobile) */}
+      {showSearchBar && (
+        <div className="sm:hidden px-4 py-2.5 bg-white border-t border-[#F0E6E9] flex items-center gap-2">
+          <div className="flex-1 flex items-center bg-[#F7F3F4] rounded-full px-3 py-1.5 border border-[#E9D9DF]">
+            <Search className="w-4 h-4 text-gray-500 mr-2 shrink-0" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              placeholder="Buscar cremas, aceites, serums..."
+              className="w-full bg-transparent text-xs text-gray-800 focus:outline-none"
+              autoFocus
+            />
+            {searchQuery && (
+              <button onClick={() => onSearchChange('')} className="text-gray-400 hover:text-gray-600 mr-1">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setShowSearchBar(false)}
+            className="text-xs font-bold text-[#E6007E] px-2 py-1"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
+
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-[#F0E6E9] px-5 py-6 space-y-4 shadow-xl">
@@ -247,6 +298,29 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span>Colección Rostro (Todas)</span>
               <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Exclusivo</span>
+            </button>
+
+            {/* SoftCare -> SoftCare (Línea Premium) */}
+            <button
+              id="mobile-nav-softcare-btn"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                handleBrandClick('SoftCare');
+              }}
+              className="w-full text-left text-base hover:text-[#E6007E] py-2 border-b border-gray-100 flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 shrink-0 font-bold text-xs">
+                  SC
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-bold text-gray-900 leading-tight">SoftCare</span>
+                  <span className="text-xs text-gray-500">Dermo-cuidado corporal y facial</span>
+                </div>
+              </div>
+              <span className="text-xs bg-purple-100 text-purple-800 font-extrabold px-2 py-0.5 rounded-full border border-purple-200">
+                Premium
+              </span>
             </button>
 
             {/* Cuidado Niños -> Mimitos */}

@@ -6,12 +6,37 @@ export interface ProductShade {
 
 export type ProductBrand = 'H2Derm' | 'Mimitos' | 'SoftCare' | 'Le Salon' | string;
 
+export type ProductCategory =
+  | 'Cremas'
+  | 'Serums'
+  | 'Ojos'
+  | 'Limpieza'
+  | 'Packs'
+  | 'Capilar'
+  | 'Corporal'
+  | 'Aceites'
+  | 'Gel'
+  | 'Bebés/Kids';
+
+export const OFFICIAL_CATEGORIES: ProductCategory[] = [
+  'Cremas',
+  'Serums',
+  'Ojos',
+  'Limpieza',
+  'Packs',
+  'Capilar',
+  'Corporal',
+  'Aceites',
+  'Gel',
+  'Bebés/Kids'
+];
+
 export interface Product {
   id: string;
   brand: ProductBrand;
   name: string;
   tagline: string;
-  category: 'Cremas' | 'Serums' | 'Ojos' | 'Limpieza' | 'Packs' | 'Capilar' | 'Corporal' | 'Bebés/Kids' | string;
+  category: ProductCategory | string;
   price: number;
   originalPrice: number;
   discountPercentage: number;

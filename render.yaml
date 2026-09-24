@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: lumea-cosmetica-profesional
+    name: ISAMER Lab-cosmetica-profesional
     env: node
     plan: free
     buildCommand: npm install && npm run build

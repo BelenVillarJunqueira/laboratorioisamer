@@ -47,21 +47,28 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
         />
 
         {/* Badges Overlay */}
-        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10">
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10 items-start">
           {product.brand && (
-            <span className={`text-[10px] sm:text-xs font-black px-2.5 py-0.5 rounded-full shadow-xs ${
-              product.brand === 'H2Derm'
-                ? 'bg-cyan-700 text-white'
-                : product.brand === 'Mimitos'
-                ? 'bg-amber-500 text-white'
-                : product.brand === 'Le Salon'
-                ? 'bg-purple-700 text-white'
-                : product.brand === 'SoftCare'
-                ? 'bg-rose-500 text-white'
-                : 'bg-neutral-800 text-white'
-            }`}>
-              {product.brand}
-            </span>
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className={`text-[10px] sm:text-xs font-black px-2.5 py-0.5 rounded-full shadow-xs ${
+                product.brand === 'H2Derm'
+                  ? 'bg-cyan-700 text-white'
+                  : product.brand === 'Mimitos'
+                  ? 'bg-amber-500 text-white'
+                  : product.brand === 'Le Salon'
+                  ? 'bg-purple-700 text-white'
+                  : product.brand === 'SoftCare'
+                  ? 'bg-rose-600 text-white'
+                  : 'bg-neutral-800 text-white'
+              }`}>
+                {product.brand}
+              </span>
+              {(product.brand === 'SoftCare' || product.badges?.some(b => b.toLowerCase().includes('premium'))) && (
+                <span className="bg-amber-400 text-neutral-950 font-black text-[9px] sm:text-[10px] px-2 py-0.5 rounded-full shadow-xs uppercase tracking-wider flex items-center gap-0.5 border border-amber-300">
+                  ★ Premium
+                </span>
+              )}
+            </div>
           )}
           {product.motherDaySpecial && (
             <span className="bg-[#E6007E] text-white text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1">
@@ -133,7 +140,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, 
                 </span>
               )}
             </div>
-
+            <p className="text-[11px] text-gray-600 font-medium mt-0.5">
+              Hasta 3 cuotas fijas de <strong className="text-gray-900 font-bold">{formatCurrency(installments.perInstallment)}</strong>
+            </p>
           </div>
 
           <button

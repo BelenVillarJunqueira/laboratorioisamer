@@ -21,7 +21,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
     e.preventDefault();
     if (
       pin.trim() === correctPin.trim() ||
-      pin.trim() === 'lumea2025' ||
+      pin.trim() === 'isamernosotros' ||
       pin.trim() === 'lumeanosotros'
     ) {
       setError(false);

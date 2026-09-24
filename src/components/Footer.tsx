@@ -18,12 +18,17 @@ export const Footer: React.FC<FooterProps> = ({ cms, onOpenTracking, onOpenAdmin
           
           {/* Brand Info */}
           <div className="space-y-4">
-            <span className="font-['Playfair_Display'] text-2xl font-extrabold tracking-tight text-white block">
-              {cms.storeName}
-            </span>
+            <div className="flex flex-col">
+              <span className="font-['Playfair_Display'] text-2xl font-extrabold tracking-tight text-white block">
+                {cms.storeName || 'ISAMER'}
+              </span>
+              <span className="text-[11px] uppercase tracking-[0.35em] text-[#9E8B92] font-bold">
+                {cms.storeTagline || 'LAB'}
+              </span>
+            </div>
             <p className="text-xs text-neutral-400 leading-relaxed">
               {cms.footerAbout ||
-                'Inspirada en el dinamismo, la frescura y la pasión femenina. Brindamos productos cosméticos para el rostro con la mejor relación precio-calidad de Argentina.'}
+                'ISAMER LAB - Laboratorio de alta cosmética y catálogo multimarca: H2Derm, SoftCare, Mimitos y Le Salon. Fórmulas dermatológicas desarrolladas con los más altos estándares de pureza y biotecnología.'}
             </p>
             <div className="flex items-center gap-2 pt-2">
               <span className="text-[10px] bg-pink-900/60 text-pink-300 font-bold px-2.5 py-1 rounded-full border border-pink-700/50">
@@ -84,11 +89,11 @@ export const Footer: React.FC<FooterProps> = ({ cms, onOpenTracking, onOpenAdmin
               </li>
               <li className="flex items-center gap-2">
                 <Instagram className="w-4 h-4 text-pink-400 shrink-0" />
-                <span>{cms.instagramHandle || '@LUMEA'}</span>
+                <span>{cms.instagramHandle || '@isamer.lab'}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-neutral-400 shrink-0" />
-                <span>{cms.emailContact || 'ventas@lumea.com.ar'}</span>
+                <span>{cms.emailContact || 'contacto@isamerlab.com'}</span>
               </li>
               <li className="text-[11px] text-neutral-500 pt-1">
                 Lunes a Viernes de 9:00 a 18:00 hs.
@@ -115,7 +120,7 @@ export const Footer: React.FC<FooterProps> = ({ cms, onOpenTracking, onOpenAdmin
                 Visa / Mastercard
               </span>
               <span className="px-2 py-1 bg-neutral-800 rounded text-[10px] font-bold text-amber-300">
-                Cabal / Débito
+                Crédito / Débito
               </span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 pt-1">

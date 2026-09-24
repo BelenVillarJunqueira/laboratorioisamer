@@ -73,7 +73,7 @@ export const MothersDayBanner: React.FC<MothersDayBannerProps> = ({ cms, onExplo
                 <div className="relative overflow-hidden rounded-2xl border border-white/20 aspect-4/3 sm:aspect-square">
                   <img
                     src={cms.mothersDayPromoBanner || 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=800&q=85'}
-                    alt="Set Día de la Madre Rutina Facial LUMÉA"
+                    alt="Set Día de la Madre Rutina Facial ISAMER LAB"
                     className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute bottom-3 left-3 right-3 bg-black/60 backdrop-blur-md rounded-xl p-3 text-center border border-white/15">

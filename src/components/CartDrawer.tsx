@@ -102,7 +102,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="space-y-1">
                   <h3 className="font-bold text-gray-800">El carrito está vacío</h3>
                   <p className="text-xs text-gray-500 max-w-xs">
-                    Descubrí nuestros 6 productos destacados para el rostro inspirados en la línea Luméa profesional.
+                    Descubrí nuestros 6 productos destacados para el rostro inspirados en la línea H2derm profesional.
                   </p>
                 </div>
                 <button

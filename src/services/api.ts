@@ -203,11 +203,11 @@ export const api = {
   },
 
   // Mercado Pago
-  async createMercadoPagoPreference(items: any[], total: number) {
+  async createMercadoPagoPreference(params: { items: any[]; total: number; payer?: any; orderNumber?: string }) {
     const res = await fetch('/api/mercadopago/create-preference', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items, total })
+      body: JSON.stringify(params)
     });
     return await res.json();
   },
@@ -293,6 +293,19 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Error al sincronizar con el código fuente');
+    }
+    return await res.json();
+  },
+
+  async syncFullData(payload: { products?: Product[]; cms?: StoreCMS; slides?: CarouselSlide[]; orders?: Order[] }) {
+    const res = await fetch('/api/sync-full', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Error al sincronizar datos');
     }
     return await res.json();
   }

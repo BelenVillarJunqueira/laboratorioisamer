@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, CreditCard, Building2, Smartphone, ShieldCheck, ArrowRight, Upload, Copy, Check, Sparkles, AlertCircle } from 'lucide-react';
+import { X, CheckCircle2, CreditCard, Building2, Smartphone, ShieldCheck, ArrowRight, Upload, Copy, Check, Sparkles, AlertCircle, ExternalLink, Lock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { StoreCMS, Order } from '../types';
 import { CartItem } from './CartDrawer';
@@ -29,6 +29,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [mpPaymentUrl, setMpPaymentUrl] = useState<string | null>(null);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -119,6 +120,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         totalPrice: item.product.price * item.quantity
       }));
 
+      // Generate realistic carrier tracking code
+      const randomTrackDigits = Math.floor(10000000 + Math.random() * 90000000);
+      const isExpress = formData.shippingMethod === 'express';
+      const carrierName = isExpress ? 'OCA Express Prioritario' : 'Correo Argentino';
+      const trackingCode = isExpress ? `OCA-${randomTrackDigits}` : `AR-${randomTrackDigits}`;
+
+      // Calculate final total based on payment method and installments
+      let finalTotal = total;
+      if (formData.paymentMethod === 'tarjeta_credito' && formData.installments > 1) {
+        const installmentInfo = calculateInstallments(total, formData.installments, true);
+        finalTotal = installmentInfo.totalWithInterest;
+      }
+
+      const isMP = formData.paymentMethod === 'mercadopago';
+
       const newOrderPayload: Partial<Order> = {
         customerName: formData.name,
         customerEmail: formData.email,
@@ -135,13 +151,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         shippingMethod: formData.shippingMethod,
         shippingCost,
         paymentMethod: formData.paymentMethod,
-        paymentStatus: formData.paymentMethod === 'transferencia' ? 'pending' : 'approved',
-        status: formData.paymentMethod === 'transferencia' ? 'Pendiente' : 'En preparación',
+        paymentStatus: isMP ? 'pending' : (formData.paymentMethod === 'transferencia' ? 'pending' : 'approved'),
+        status: isMP ? 'Pendiente' : (formData.paymentMethod === 'transferencia' ? 'Pendiente' : 'En preparación'),
         items: orderItems,
         subtotal,
         discount: discountAmount,
-        total,
+        total: finalTotal,
         bankReceiptImage: formData.receiptImage,
+        trackingCode,
+        carrierName,
         notes: formData.notes
       };
 
@@ -149,6 +167,47 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setCreatedOrder(order);
       onOrderCompleted(order);
       onClearCart();
+
+      // If user selected Mercado Pago, redirect to actual Mercado Pago platform
+      if (isMP) {
+        try {
+          const prefResponse = await api.createMercadoPagoPreference({
+            items: orderItems,
+            total: finalTotal,
+            payer: {
+              name: formData.name,
+              email: formData.email,
+              phone: formData.phone,
+              dni: formData.dni,
+              address: {
+                street: formData.street,
+                number: formData.number,
+                postalCode: formData.postalCode
+              }
+            },
+            orderNumber: order.orderNumber
+          });
+
+          const redirectUrl = prefResponse.init_point || prefResponse.sandbox_init_point;
+          if (redirectUrl) {
+            setMpPaymentUrl(redirectUrl);
+            // Save last pending order number in localStorage for tracker
+            try {
+              localStorage.setItem('isamer_last_order', order.orderNumber);
+            } catch {
+              // ignore
+            }
+
+            // Attempt redirect, or let confirmation view provide direct button if popup blocked
+            setTimeout(() => {
+              window.location.href = redirectUrl;
+            }, 800);
+          }
+        } catch (mpErr) {
+          console.error('Error connecting to Mercado Pago gateway:', mpErr);
+        }
+      }
+
       setStep('confirmation');
 
       // Trigger Confetti Celebration
@@ -680,17 +739,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                     <div>
                       <label className="block text-[11px] font-medium text-gray-600 mb-0.5">
-                        Seleccionar Cuotas
+                        Seleccionar Cuotas con Tarjeta
                       </label>
                       <select
                         value={formData.installments}
                         onChange={e => setFormData({ ...formData, installments: Number(e.target.value) })}
                         className="w-full text-xs p-2.5 rounded-xl border border-gray-200 bg-white focus:border-[#E6007E] outline-none"
                       >
-                        <option value={1}>1 pago de {formatCurrency(total)}</option>
-                        <option value={3}>3 cuotas {formatCurrency(Math.round(total / 3))}</option>
-                        <option value={6}>6 cuotas {formatCurrency(Math.round(total / 6))}</option>
+                        <option value={1}>1 pago al contado de {formatCurrency(total)}</option>
+                        <option value={3}>
+                          3 cuotas fijas de {formatCurrency(calculateInstallments(total, 3, true).perInstallment)} (Total: {formatCurrency(calculateInstallments(total, 3, true).totalWithInterest)})
+                        </option>
+                        <option value={6}>
+                          6 cuotas fijas de {formatCurrency(calculateInstallments(total, 6, true).perInstallment)} (Total: {formatCurrency(calculateInstallments(total, 6, true).totalWithInterest)})
+                        </option>
                       </select>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        * Planes en cuotas calculados con tasa de financiación bancaria estándar.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -714,9 +780,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     {shippingCost === 0 ? 'GRATIS' : formatCurrency(shippingCost)}
                   </span>
                 </div>
+                {formData.paymentMethod === 'tarjeta_credito' && formData.installments > 1 && (
+                  <div className="flex justify-between text-amber-700 text-xs font-semibold pt-1 border-t border-pink-200/50">
+                    <span>Interés financiero ({formData.installments} cuotas):</span>
+                    <span>+{formatCurrency(calculateInstallments(total, formData.installments, true).totalWithInterest - total)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-base font-extrabold text-gray-900 pt-2 border-t border-pink-200">
                   <span>Total Final:</span>
-                  <span className="text-[#E6007E]">{formatCurrency(total)}</span>
+                  <span className="text-[#E6007E]">
+                    {formatCurrency(
+                      formData.paymentMethod === 'tarjeta_credito' && formData.installments > 1
+                        ? calculateInstallments(total, formData.installments, true).totalWithInterest
+                        : total
+                    )}
+                  </span>
                 </div>
               </div>
 
@@ -733,14 +811,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   type="button"
                   disabled={loading}
                   onClick={handleFinalizeOrder}
-                  className="bg-[#E6007E] hover:bg-[#C9006B] text-white text-xs sm:text-sm font-bold px-8 py-3.5 rounded-xl shadow-lg hover:shadow-pink-500/25 transition-all flex items-center gap-2 disabled:opacity-50"
+                  className={`text-white text-xs sm:text-sm font-bold px-8 py-3.5 rounded-xl shadow-lg transition-all flex items-center gap-2 disabled:opacity-50 ${
+                    formData.paymentMethod === 'mercadopago'
+                      ? 'bg-[#009EE3] hover:bg-[#0081ba] shadow-blue-500/20'
+                      : 'bg-[#E6007E] hover:bg-[#C9006B] shadow-pink-500/25'
+                  }`}
                 >
                   {loading ? (
-                    <span>Procesando pedido...</span>
+                    <span>{formData.paymentMethod === 'mercadopago' ? 'Conectando con Mercado Pago...' : 'Procesando pedido...'}</span>
                   ) : (
                     <>
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Confirmar y Pagar {formatCurrency(total)}</span>
+                      {formData.paymentMethod === 'mercadopago' ? (
+                        <>
+                          <ExternalLink className="w-4 h-4" />
+                          <span>Pagar en Mercado Pago ({formatCurrency(total)})</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>
+                            Confirmar y Pagar{' '}
+                            {formatCurrency(
+                              formData.paymentMethod === 'tarjeta_credito' && formData.installments > 1
+                                ? calculateInstallments(total, formData.installments, true).totalWithInterest
+                                : total
+                            )}
+                          </span>
+                        </>
+                      )}
                     </>
                   )}
                 </button>
@@ -784,10 +882,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span className="font-medium text-gray-800 capitalize">{createdOrder.paymentMethod.replace('_', ' ')}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs pt-1 border-t border-pink-200">
-                  <span className="font-bold text-gray-900">Total Abonado:</span>
+                  <span className="font-bold text-gray-900">Total:</span>
                   <span className="font-black text-[#E6007E] text-sm">{formatCurrency(createdOrder.total)}</span>
                 </div>
               </div>
+
+              {/* Mercado Pago direct redirect / button */}
+              {createdOrder.paymentMethod === 'mercadopago' && mpPaymentUrl && (
+                <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 max-w-md mx-auto text-center space-y-2.5">
+                  <div className="text-xs font-bold text-[#009EE3] uppercase tracking-wider flex items-center justify-center gap-1.5">
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Pasarela de Pago Mercado Pago</span>
+                  </div>
+                  <p className="text-xs text-sky-900">
+                    Si no se abrió la ventana automáticamente, hacé clic en el botón para completar el pago de forma segura:
+                  </p>
+                  <a
+                    href={mpPaymentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#0081ba] text-white font-bold px-6 py-3 rounded-xl shadow-md transition-all text-xs sm:text-sm w-full cursor-pointer"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Abrir Plataforma de Mercado Pago</span>
+                  </a>
+                </div>
+              )}
 
               {/* Direct Buttons: Track Order or Share on WhatsApp */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">

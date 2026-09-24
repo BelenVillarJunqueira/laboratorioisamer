@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Package, CheckCircle2, Clock, Truck, Home, AlertCircle, Copy, Check, MessageCircle } from 'lucide-react';
+import { X, Search, Package, CheckCircle2, Clock, Truck, Home, AlertCircle, Copy, Check, MessageCircle, ExternalLink } from 'lucide-react';
 import { Order, OrderStatus } from '../types';
 import { api } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/formatters';
@@ -226,22 +226,45 @@ export const OrderTrackerModal: React.FC<OrderTrackerModalProps> = ({
 
               {/* Tracking courier code if shipped */}
               {order.trackingCode && (
-                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between text-xs">
-                  <div>
-                    <span className="text-emerald-800 font-bold block">
-                      Despachado con {order.carrierName || 'Correo Argentino'}
-                    </span>
-                    <span className="font-mono text-gray-700 text-[11px]">
-                      Código de seguimiento: <strong>{order.trackingCode}</strong>
-                    </span>
+                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl text-xs space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="text-emerald-800 font-bold block flex items-center gap-1.5">
+                        <Truck className="w-4 h-4 text-emerald-700" />
+                        Despachado con {order.carrierName || 'Correo Argentino'}
+                      </span>
+                      <span className="font-mono text-gray-700 text-[11px] block mt-0.5">
+                        Código de guía: <strong className="text-gray-900 text-xs">{order.trackingCode}</strong>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => copyTrackingCode(order.trackingCode!)}
+                        className="px-3 py-1.5 bg-white hover:bg-emerald-100 rounded-lg text-emerald-800 font-semibold border border-emerald-300 flex items-center gap-1 transition-colors text-[11px]"
+                      >
+                        {copiedTracking ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedTracking ? '¡Copiado!' : 'Copiar código'}</span>
+                      </button>
+
+                      <a
+                        href={
+                          order.carrierName?.toLowerCase().includes('oca')
+                            ? `https://www.oca.com.ar/`
+                            : `https://www.correoargentino.com.ar/formularios/e-commerce`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-semibold flex items-center gap-1 transition-colors text-[11px] shadow-xs"
+                      >
+                        <span>Portal de {order.carrierName?.toLowerCase().includes('oca') ? 'OCA' : 'Correo Arg.'}</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => copyTrackingCode(order.trackingCode!)}
-                    className="p-2 bg-white hover:bg-emerald-100 rounded-lg text-emerald-800 font-semibold border border-emerald-300 flex items-center gap-1 transition-colors"
-                  >
-                    {copiedTracking ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                    <span>{copiedTracking ? '¡Copiado!' : 'Copiar'}</span>
-                  </button>
+                  <p className="text-[11px] text-emerald-700/90 pt-1 border-t border-emerald-200/60">
+                    💡 Podés pegar este código de guía directamente en el portal oficial de envíos para ver el trayecto y la sucursal de distribución asignada.
+                  </p>
                 </div>
               )}
 

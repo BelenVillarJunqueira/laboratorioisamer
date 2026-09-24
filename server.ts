@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
@@ -8,13 +10,67 @@ import { Product, CarouselSlide, StoreCMS, Order, PixelEventLog, PushNotificatio
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-// Increase payload limit for image/video uploads
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Increase payload limit for image/video uploads and large store.json imports
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Ensure data directory exists for persistence
+// Directories and file persistence
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'store.json');
+const DATA_BACKUP_FILE = path.join(DATA_DIR, 'store.backup.json');
+const DATA_LAST_BACKUP_FILE = path.join(DATA_DIR, 'store.backup.last.json');
+const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
+
+// Ensure uploads directory exists and is served statically
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Helper: Extract huge base64 images into actual files in /public/uploads/
+// This avoids 10MB+ strings bloating store.json and crashing browser localStorage!
+function sanitizeAndExtractBase64Image(dataUri: string, prefix = 'img'): string {
+  if (!dataUri || typeof dataUri !== 'string') return dataUri;
+  if (!dataUri.startsWith('data:image/')) return dataUri;
+
+  try {
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+    const match = dataUri.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+    if (!match) return dataUri;
+
+    let ext = match[1].toLowerCase();
+    if (ext === 'jpeg') ext = 'jpg';
+    if (ext === 'svg+xml') ext = 'svg';
+
+    const base64Data = match[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+    const filename = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
+    const filePath = path.join(UPLOADS_DIR, filename);
+
+    fs.writeFileSync(filePath, buffer);
+    return `/uploads/${filename}`;
+  } catch (err) {
+    console.error('Error extracting base64 image to disk:', err);
+    return dataUri;
+  }
+}
+
+function cleanProductBase64Images(product: Product): Product {
+  const cleaned = { ...product };
+  if (cleaned.image && cleaned.image.startsWith('data:image/')) {
+    cleaned.image = sanitizeAndExtractBase64Image(cleaned.image, `prod-${cleaned.id || 'img'}`);
+  }
+  if (Array.isArray(cleaned.secondaryImages)) {
+    cleaned.secondaryImages = cleaned.secondaryImages.map((img, i) =>
+      img && img.startsWith('data:image/')
+        ? sanitizeAndExtractBase64Image(img, `prod-${cleaned.id || 'sec'}-${i}`)
+        : img
+    );
+  }
+  return cleaned;
+}
 
 interface StoredData {
   products: Product[];
@@ -31,30 +87,57 @@ function loadData(): StoredData {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
-      const parsed = JSON.parse(raw);
 
-      // Ensure every product has a valid brand (LUMÉA is the store/lab name, not a brand)
-      // and do NOT force-inject INITIAL_PRODUCTS if stored products already exist!
-      const rawProducts = Array.isArray(parsed.products) ? parsed.products : [];
+    let raw: string | null = null;
+
+    if (fs.existsSync(DATA_FILE)) {
+      try {
+        const candidate = fs.readFileSync(DATA_FILE, 'utf-8');
+        if (candidate && candidate.trim().length > 10) {
+          raw = candidate;
+        }
+      } catch (e) {
+        console.warn('Error reading DATA_FILE, attempting backup fallback:', e);
+      }
+    }
+
+    // Fail-safe: if DATA_FILE is unreadable, attempt recovery from backup files
+    if (!raw && fs.existsSync(DATA_BACKUP_FILE)) {
+      try {
+        raw = fs.readFileSync(DATA_BACKUP_FILE, 'utf-8');
+        console.log('Successfully recovered data from DATA_BACKUP_FILE');
+      } catch {}
+    }
+    if (!raw && fs.existsSync(DATA_LAST_BACKUP_FILE)) {
+      try {
+        raw = fs.readFileSync(DATA_LAST_BACKUP_FILE, 'utf-8');
+        console.log('Successfully recovered data from DATA_LAST_BACKUP_FILE');
+      } catch {}
+    }
+
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const rawProducts = Array.isArray(parsed.products) ? parsed.products : (Array.isArray(parsed) ? parsed : []);
       let storedProducts: Product[] = [];
 
       if (rawProducts.length > 0) {
-        storedProducts = rawProducts.map((p: any, idx: number) => ({
-          ...p,
-          brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
-          order: typeof p.order === 'number' ? p.order : (idx + 1)
-        }));
+        storedProducts = rawProducts.map((p: any, idx: number) => {
+          const cleaned = cleanProductBase64Images(p);
+          return {
+            ...cleaned,
+            brand: (cleaned.brand && cleaned.brand !== 'ISAMER' && cleaned.brand !== 'ISAMER') ? cleaned.brand : 'H2Derm',
+            order: typeof cleaned.order === 'number' ? cleaned.order : (idx + 1)
+          };
+        });
       } else {
-        storedProducts = INITIAL_PRODUCTS.map((p, idx) => ({
+        storedProducts = INITIAL_PRODUCTS.map((p: Product, idx: number) => ({
           ...p,
-          brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
+          brand: (p.brand && p.brand !== 'ISAMER' && p.brand !== 'ISAMER') ? p.brand : 'H2Derm',
           order: typeof p.order === 'number' ? p.order : (idx + 1)
         }));
       }
 
-      // Merge CMS settings
+      // Merge CMS settings safely
       const mergedCms: StoreCMS = {
         ...INITIAL_CMS,
         ...(parsed.cms || {}),
@@ -78,10 +161,11 @@ function loadData(): StoredData {
       };
     }
   } catch (err) {
-    console.error('Error loading stored data, using initial defaults:', err);
+    console.error('Error loading stored data:', err);
   }
 
-  const initial: StoredData = {
+  // Fallback defaults ONLY if no stored data exists at all. DO NOT overwrite existing disk file!
+  return {
     products: INITIAL_PRODUCTS,
     slides: INITIAL_SLIDES,
     cms: INITIAL_CMS,
@@ -92,24 +176,6 @@ function loadData(): StoredData {
         eventName: 'PageView',
         timestamp: new Date(Date.now() - 3600000).toISOString(),
         data: { url: '/', referrer: 'https://www.instagram.com/' }
-      },
-      {
-        id: 'pix-2',
-        eventName: 'ViewContent',
-        timestamp: new Date(Date.now() - 2800000).toISOString(),
-        data: { content_name: 'Base Líquida Resist 24H', value: 18900, currency: 'ARS' }
-      },
-      {
-        id: 'pix-3',
-        eventName: 'AddToCart',
-        timestamp: new Date(Date.now() - 1400000).toISOString(),
-        data: { content_name: 'Set Día de la Madre', value: 39900, currency: 'ARS' }
-      },
-      {
-        id: 'pix-4',
-        eventName: 'Purchase',
-        timestamp: new Date(Date.now() - 600000).toISOString(),
-        data: { value: 39900, currency: 'ARS', order_id: 'LUM-8492' }
       }
     ],
     pushNotifications: [
@@ -122,8 +188,6 @@ function loadData(): StoredData {
     ],
     subscribersCount: 184
   };
-  saveData(initial);
-  return initial;
 }
 
 let saveTimeout: NodeJS.Timeout | null = null;
@@ -131,40 +195,94 @@ function debouncedSaveData() {
   if (saveTimeout) clearTimeout(saveTimeout);
   saveTimeout = setTimeout(() => {
     saveData(storeState);
-  }, 3000);
+  }, 1000);
 }
 
-function syncToInitialData(data: StoredData) {
+let isInternalSave = false;
+
+function reloadStoreFromDisk() {
+  if (isInternalSave) return;
   try {
-    const initialDataPath = path.join(process.cwd(), 'src', 'data', 'initialData.ts');
-    if (fs.existsSync(initialDataPath)) {
-      const content = `import { Product, CarouselSlide, StoreCMS, Order } from '../types';
-
-export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(data.products, null, 2)};
-
-export const INITIAL_SLIDES: CarouselSlide[] = ${JSON.stringify(data.slides, null, 2)};
-
-export const INITIAL_CMS: StoreCMS = ${JSON.stringify(data.cms, null, 2)};
-
-export const INITIAL_ORDERS: Order[] = ${JSON.stringify(data.orders, null, 2)};
-`;
-      fs.writeFileSync(initialDataPath, content, 'utf-8');
+    if (fs.existsSync(DATA_FILE)) {
+      const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+      if (raw && raw.trim().length > 10) {
+        const parsed = JSON.parse(raw);
+        if (parsed.products && Array.isArray(parsed.products)) {
+          storeState.products = parsed.products.map((p: any, idx: number) => ({
+            ...p,
+            order: typeof p.order === 'number' ? p.order : (idx + 1)
+          }));
+        }
+        if (parsed.cms) {
+          storeState.cms = { ...storeState.cms, ...parsed.cms };
+        }
+        if (parsed.slides && Array.isArray(parsed.slides)) {
+          storeState.slides = parsed.slides;
+        }
+        if (parsed.orders && Array.isArray(parsed.orders)) {
+          storeState.orders = parsed.orders;
+        }
+        console.log('[STORE WATCHER] Cambios externos detectados en data/store.json y cargados en memoria con éxito.');
+      }
     }
   } catch (err) {
-    console.error('Error syncing initialData.ts:', err);
+    // Ignore temporary partial writes
   }
+}
+
+// Watch data folder for manual edits in VS Code so they are immediately loaded into memory
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  fs.watch(DATA_DIR, (eventType, filename) => {
+    if (filename === 'store.json' && !isInternalSave) {
+      setTimeout(reloadStoreFromDisk, 300);
+    }
+  });
+} catch (wErr) {
+  console.warn('Watch on data dir could not be established:', wErr);
 }
 
 function saveData(data: StoredData) {
   try {
+    isInternalSave = true;
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    // Ensure persistence survives Render redeploys and container restarts
-    syncToInitialData(data);
+
+    // 1. Sanitize any base64 images into physical files to keep JSON file lightweight
+    const sanitizedProducts = data.products.map(p => cleanProductBase64Images(p));
+    const safeData: StoredData = {
+      ...data,
+      products: sanitizedProducts
+    };
+
+    // 2. Keep historical backup before overwriting
+    if (fs.existsSync(DATA_FILE)) {
+      try {
+        fs.copyFileSync(DATA_FILE, DATA_LAST_BACKUP_FILE);
+      } catch {}
+    }
+
+    // 3. Atomic write using temporary file to prevent corruption if process is interrupted
+    const jsonString = JSON.stringify(safeData, null, 2);
+    const tmpFile = `${DATA_FILE}.tmp.${Date.now()}`;
+    fs.writeFileSync(tmpFile, jsonString, 'utf-8');
+    fs.renameSync(tmpFile, DATA_FILE);
+
+    // 4. Update long-term backup
+    if (safeData.products && safeData.products.length > 0) {
+      try {
+        fs.writeFileSync(DATA_BACKUP_FILE, jsonString, 'utf-8');
+      } catch {}
+    }
   } catch (err) {
     console.error('Error saving data to file:', err);
+  } finally {
+    setTimeout(() => {
+      isInternalSave = false;
+    }, 600);
   }
 }
 
@@ -183,9 +301,9 @@ app.get('/api/products', (req, res) => {
 // Batch update products or save full list
 app.put('/api/products', (req, res) => {
   if (Array.isArray(req.body)) {
-    storeState.products = req.body.map((p, idx) => ({
+    storeState.products = req.body.map((p: any, idx: number) => ({
       ...p,
-      brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
+      brand: (p.brand && p.brand !== 'ISAMER') ? p.brand : 'H2Derm',
       order: typeof p.order === 'number' ? p.order : (idx + 1)
     }));
     saveData(storeState);
@@ -198,18 +316,18 @@ app.put('/api/products', (req, res) => {
 app.put('/api/products/reorder', (req, res) => {
   const { products, productIds } = req.body;
   if (Array.isArray(products)) {
-    storeState.products = products.map((p, idx) => ({
+    storeState.products = products.map((p: any, idx: number) => ({
       ...p,
-      brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
+      brand: (p.brand && p.brand !== 'ISAMER') ? p.brand : 'H2Derm',
       order: idx + 1
     }));
     saveData(storeState);
     return res.json({ success: true, products: storeState.products });
   }
   if (Array.isArray(productIds)) {
-    const map = new Map(storeState.products.map(p => [p.id, p]));
+    const map = new Map(storeState.products.map((p: Product) => [p.id, p]));
     const reordered: Product[] = [];
-    productIds.forEach((id, idx) => {
+    productIds.forEach((id: string, idx: number) => {
       const p = map.get(id);
       if (p) {
         p.order = idx + 1;
@@ -249,9 +367,9 @@ app.put('/api/products/:id', (req, res) => {
       );
     }
 
-    const brandToUse = (updatedProduct.brand && updatedProduct.brand !== 'LUMÉA')
+    const brandToUse = (updatedProduct.brand && updatedProduct.brand !== 'ISAMER')
       ? updatedProduct.brand
-      : (index !== -1 && storeState.products[index].brand !== 'LUMÉA' ? storeState.products[index].brand : 'H2Derm');
+      : (index !== -1 && storeState.products[index].brand !== 'ISAMER' ? storeState.products[index].brand : 'H2Derm');
 
     if (index !== -1) {
       // Update existing product
@@ -304,7 +422,7 @@ app.put('/api/products/:id', (req, res) => {
 
 app.post('/api/products', (req, res) => {
   try {
-    const brandToUse = (req.body.brand && req.body.brand !== 'LUMÉA') ? req.body.brand : 'H2Derm';
+    const brandToUse = (req.body.brand && req.body.brand !== 'ISAMER') ? req.body.brand : 'H2Derm';
     const prodId = req.body.id || 'prod-' + Date.now();
 
     // Check if ID already exists, if so update it
@@ -397,7 +515,22 @@ app.delete('/api/slides/:id', (req, res) => {
 
 // Store CMS API
 app.get('/api/cms', (req, res) => {
-  res.json(storeState.cms);
+  const mergedCms = { ...storeState.cms };
+  if (!mergedCms.mercadoPagoConfig) {
+    mergedCms.mercadoPagoConfig = {
+      publicKey: process.env.MERCADO_PAGO_PUBLIC_KEY || '',
+      accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN || '',
+      sandboxMode: false,
+      enabled: true
+    };
+  } else {
+    mergedCms.mercadoPagoConfig = {
+      ...mergedCms.mercadoPagoConfig,
+      publicKey: mergedCms.mercadoPagoConfig.publicKey || process.env.MERCADO_PAGO_PUBLIC_KEY || '',
+      accessToken: mergedCms.mercadoPagoConfig.accessToken || process.env.MERCADO_PAGO_ACCESS_TOKEN || ''
+    };
+  }
+  res.json(mergedCms);
 });
 
 app.put('/api/cms', (req, res) => {
@@ -409,34 +542,81 @@ app.put('/api/cms', (req, res) => {
   res.json({ success: true, cms: storeState.cms });
 });
 
+// Direct image upload endpoint: converts image data directly to static URL
+app.post('/api/admin/upload-image', (req, res) => {
+  try {
+    const { dataUri, name } = req.body;
+    if (!dataUri) {
+      return res.status(400).json({ error: 'dataUri de imagen requerido' });
+    }
+    const cleanUrl = sanitizeAndExtractBase64Image(dataUri, name ? `img-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}` : 'upload');
+    res.json({ success: true, url: cleanUrl });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al subir imagen: ' + err.message });
+  }
+});
+
 // Backup & Persistence Sync APIs
 app.get('/api/admin/backup', (req, res) => {
-  res.setHeader('Content-Disposition', 'attachment; filename="backup-catalogo-tienda.json"');
+  res.setHeader('Content-Disposition', 'attachment; filename="store.json"');
   res.setHeader('Content-Type', 'application/json');
   res.json({
     version: '1.0',
     exportDate: new Date().toISOString(),
-    storeState
+    products: storeState.products,
+    slides: storeState.slides,
+    cms: storeState.cms,
+    orders: storeState.orders
   });
 });
 
 app.post('/api/admin/restore', (req, res) => {
   try {
     const raw = req.body;
-    const payload = raw.storeState || raw.data || raw;
+    let payload = raw.storeState || raw.data || raw;
 
-    if (!payload || (!payload.products && !Array.isArray(payload))) {
-      return res.status(400).json({ error: 'Formato de respaldo no válido. Debe contener productos.' });
+    // Handle if sent as string
+    if (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload);
+      } catch (parseErr: any) {
+        return res.status(400).json({ error: 'El contenido recibido no es un JSON válido: ' + parseErr.message });
+      }
     }
 
-    const newProducts = Array.isArray(payload) ? payload : (payload.products || storeState.products);
+    if (!payload || (!payload.products && !Array.isArray(payload))) {
+      return res.status(400).json({ error: 'Formato de respaldo no válido. Debe contener una lista de productos.' });
+    }
+
+    const rawProductsList = Array.isArray(payload) ? payload : (payload.products || []);
+    
+    if (!Array.isArray(rawProductsList) || rawProductsList.length === 0) {
+      return res.status(400).json({ error: 'No se encontraron productos en el archivo proporcionado.' });
+    }
+
+    // Clean and extract all Base64 images to physical files in /uploads/
+    const cleanedProducts: Product[] = rawProductsList.map((p: any, idx: number) => {
+      const sanitized = cleanProductBase64Images(p);
+      return {
+        ...sanitized,
+        id: sanitized.id || `prod-${Date.now()}-${idx}`,
+        name: sanitized.name || 'Producto sin nombre',
+        price: typeof sanitized.price === 'number' ? sanitized.price : (Number(sanitized.price) || 0),
+        originalPrice: typeof sanitized.originalPrice === 'number' ? sanitized.originalPrice : (Number(sanitized.originalPrice) || sanitized.price || 0),
+        category: sanitized.category || 'Cremas',
+        brand: (sanitized.brand && sanitized.brand !== 'ISAMER' && sanitized.brand !== 'ISAMER') ? sanitized.brand : (sanitized.brand || 'H2Derm'),
+        stock: typeof sanitized.stock === 'number' ? sanitized.stock : (Number(sanitized.stock) || 50),
+        order: typeof sanitized.order === 'number' ? sanitized.order : (idx + 1)
+      };
+    });
+
     const newSlides = payload.slides && payload.slides.length > 0 ? payload.slides : storeState.slides;
     const newCms = payload.cms ? { ...storeState.cms, ...payload.cms } : storeState.cms;
-    const newOrders = payload.orders || storeState.orders;
+    const newOrders = Array.isArray(payload.orders) ? payload.orders : storeState.orders;
 
     storeState = {
       ...storeState,
-      products: newProducts,
+      products: cleanedProducts,
       slides: newSlides,
       cms: newCms,
       orders: newOrders
@@ -444,66 +624,68 @@ app.post('/api/admin/restore', (req, res) => {
 
     saveData(storeState);
 
-    // Also attempt to write to initialData.ts if available locally
-    try {
-      const initialDataPath = path.join(process.cwd(), 'src', 'data', 'initialData.ts');
-      if (fs.existsSync(initialDataPath)) {
-        const content = `import { Product, CarouselSlide, StoreCMS, Order } from '../types';
-
-export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(storeState.products, null, 2)};
-
-export const INITIAL_SLIDES: CarouselSlide[] = ${JSON.stringify(storeState.slides, null, 2)};
-
-export const INITIAL_CMS: StoreCMS = ${JSON.stringify(storeState.cms, null, 2)};
-
-export const INITIAL_ORDERS: Order[] = ${JSON.stringify(storeState.orders, null, 2)};
-`;
-        fs.writeFileSync(initialDataPath, content, 'utf-8');
-      }
-    } catch {
-      // non-fatal
-    }
+    console.log(`[RESTORE] Successfully restored ${cleanedProducts.length} products to store.json`);
 
     res.json({
       success: true,
-      message: '¡Copia de seguridad restaurada correctamente!',
+      count: cleanedProducts.length,
+      message: `¡Copia de seguridad restaurada correctamente con ${cleanedProducts.length} productos!`,
       products: storeState.products,
       slides: storeState.slides,
       cms: storeState.cms,
       orders: storeState.orders
     });
   } catch (err: any) {
-    res.status(500).json({ error: 'Error al restaurar: ' + err.message });
+    console.error('Error in /api/admin/restore:', err);
+    res.status(500).json({ error: 'Error al restaurar respaldo: ' + err.message });
   }
 });
 
 app.post('/api/admin/sync-code', (req, res) => {
   try {
-    const initialDataPath = path.join(process.cwd(), 'src', 'data', 'initialData.ts');
-    if (!fs.existsSync(initialDataPath)) {
-      return res.status(404).json({ error: 'No se encontró src/data/initialData.ts en el servidor' });
-    }
-
-    const content = `import { Product, CarouselSlide, StoreCMS, Order } from '../types';
-
-export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(storeState.products, null, 2)};
-
-export const INITIAL_SLIDES: CarouselSlide[] = ${JSON.stringify(storeState.slides, null, 2)};
-
-export const INITIAL_CMS: StoreCMS = ${JSON.stringify(storeState.cms, null, 2)};
-
-export const INITIAL_ORDERS: Order[] = ${JSON.stringify(storeState.orders, null, 2)};
-`;
-
-    fs.writeFileSync(initialDataPath, content, 'utf-8');
     saveData(storeState);
 
     res.json({
       success: true,
-      message: '¡Catálogo sincronizado exitosamente con src/data/initialData.ts! Ya puedes hacer git commit y git push para que Render nunca más pierda los productos.'
+      message: '¡Catálogo sincronizado exitosamente con la base de datos persistente!'
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Error al sincronizar con código: ' + err.message });
+  }
+});
+
+// Full store synchronization endpoint (atomic save of products, cms, slides, orders)
+app.post('/api/sync-full', (req, res) => {
+  try {
+    const { products, cms, slides, orders } = req.body;
+    if (Array.isArray(products) && products.length > 0) {
+      storeState.products = products.map((p: any, idx: number) => ({
+        ...p,
+        brand: (p.brand && p.brand !== 'ISAMER' && p.brand !== 'ISAMER') ? p.brand : (p.brand || 'H2Derm'),
+        order: typeof p.order === 'number' ? p.order : (idx + 1)
+      }));
+    }
+    if (cms && typeof cms === 'object') {
+      storeState.cms = {
+        ...storeState.cms,
+        ...cms
+      };
+    }
+    if (Array.isArray(slides) && slides.length > 0) {
+      storeState.slides = slides;
+    }
+    if (Array.isArray(orders)) {
+      storeState.orders = orders;
+    }
+    saveData(storeState);
+    res.json({
+      success: true,
+      message: 'Todos los datos (catálogo, textos, carrusel y pedidos) guardados con éxito',
+      productsCount: storeState.products.length
+    });
+  } catch (err: any) {
+    console.error('Error in /api/sync-full:', err);
+    res.status(500).json({ error: 'Error al sincronizar datos: ' + err.message });
   }
 });
 
@@ -581,38 +763,153 @@ app.get('/api/orders/track/:query', (req, res) => {
   res.json({ success: true, order });
 });
 
-// Media upload endpoint (Handles base64 data URLs & file uploads)
+// Media upload endpoint (Saves base64 data to physical file in /public/uploads/)
 app.post('/api/upload', (req, res) => {
   const { fileData, fileName, fileType } = req.body;
   if (!fileData) {
     return res.status(400).json({ error: 'fileData is required' });
   }
 
-  // Base64 storage returns directly or saves to public folder
-  // Returning the Data URI guarantees instant preview, persistence in DB and Render compatibility
-  res.json({
-    success: true,
-    url: fileData,
-    fileName: fileName || 'media_' + Date.now(),
-    fileType: fileType || 'image/jpeg'
-  });
+  try {
+    // If it's a base64 Data URI, extract and save to /public/uploads/
+    if (typeof fileData === 'string' && fileData.startsWith('data:')) {
+      const cleanUrl = sanitizeAndExtractBase64Image(fileData, (fileName || 'img').replace(/[^a-zA-Z0-9_-]/g, ''));
+      return res.json({
+        success: true,
+        url: cleanUrl,
+        fileName: fileName || 'media_' + Date.now(),
+        fileType: fileType || 'image/jpeg'
+      });
+    }
+
+    // Already a standard URL
+    res.json({
+      success: true,
+      url: fileData,
+      fileName: fileName || 'media_' + Date.now(),
+      fileType: fileType || 'image/jpeg'
+    });
+  } catch (uploadErr: any) {
+    console.error('Error processing upload:', uploadErr);
+    res.status(500).json({ error: 'Error al procesar archivo: ' + uploadErr.message });
+  }
 });
 
-// Mercado Pago Payment Processing Simulation & Preference Generator
-app.post('/api/mercadopago/create-preference', (req, res) => {
-  const { items, payer, total } = req.body;
-  const preferenceId = 'MP-PREF-' + Math.random().toString(36).substring(2, 9).toUpperCase();
-  
-  // Real or sandbox preference response
-  res.json({
-    success: true,
-    preferenceId,
-    init_point: `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${preferenceId}`,
-    sandbox_init_point: `https://sandbox.mercadopago.com.ar/checkout/v1/redirect?pref_id=${preferenceId}`,
-    publicKey: storeState.cms.mercadoPagoConfig.publicKey,
-    sandbox: storeState.cms.mercadoPagoConfig.sandboxMode,
-    amount: total
-  });
+// Mercado Pago Preference Generator & Payment Processing
+app.post('/api/mercadopago/create-preference', async (req, res) => {
+  try {
+    const { items, payer, total, orderNumber } = req.body;
+    
+    // Retrieve token from CMS configuration or environment variables
+    const accessToken = 
+      storeState.cms.mercadoPagoConfig?.accessToken?.trim() || 
+      process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() || 
+      '';
+    
+    const isSandbox = !!storeState.cms.mercadoPagoConfig?.sandboxMode;
+    const publicKey = storeState.cms.mercadoPagoConfig?.publicKey || process.env.MERCADO_PAGO_PUBLIC_KEY || '';
+
+    // If an Access Token is configured, call Mercado Pago official API
+    if (accessToken && accessToken.length > 10 && !accessToken.includes('00000000')) {
+      const baseUrl = req.headers.origin || `http://localhost:${PORT}`;
+
+      // Build MP preference payload
+      const mpItems = Array.isArray(items) && items.length > 0
+        ? items.map(item => ({
+            id: String(item.productId || item.id || 'item-1'),
+            title: String(item.productName || item.title || 'Producto ISAMER LAB'),
+            description: item.shade ? `Tono: ${item.shade}` : 'Cosmética dermatológica',
+            picture_url: item.productImage || undefined,
+            quantity: Number(item.quantity) || 1,
+            currency_id: 'ARS',
+            unit_price: Number(item.unitPrice || (total / (items.length || 1)))
+          }))
+        : [{
+            id: 'order-' + (orderNumber || Date.now()),
+            title: `Pedido ${orderNumber || 'LUM-ONLINE'}`,
+            quantity: 1,
+            currency_id: 'ARS',
+            unit_price: Number(total)
+          }];
+
+      const mpPayload = {
+        items: mpItems,
+        payer: payer ? {
+          name: payer.name || undefined,
+          email: payer.email || undefined,
+          phone: payer.phone ? { number: payer.phone } : undefined,
+          identification: payer.dni ? { type: 'DNI', number: payer.dni } : undefined,
+          address: payer.address ? {
+            street_name: payer.address.street || '',
+            street_number: Number(payer.address.number) || 0,
+            zip_code: payer.address.postalCode || ''
+          } : undefined
+        } : undefined,
+        back_urls: {
+          success: `${baseUrl}/?payment_status=approved&order=${orderNumber || ''}`,
+          pending: `${baseUrl}/?payment_status=pending&order=${orderNumber || ''}`,
+          failure: `${baseUrl}/?payment_status=failure&order=${orderNumber || ''}`
+        },
+        auto_return: 'approved',
+        external_reference: orderNumber || `ORD-${Date.now()}`,
+        statement_descriptor: 'ISAMER LAB',
+        payment_methods: {
+          installments: 6 // Allow up to 6 installments with card/MP interest
+        }
+      };
+
+      try {
+        const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          },
+          body: JSON.stringify(mpPayload)
+        });
+
+        if (mpRes.ok) {
+          const mpData = await mpRes.json();
+          const initPoint = isSandbox ? (mpData.sandbox_init_point || mpData.init_point) : mpData.init_point;
+          
+          return res.json({
+            success: true,
+            isLive: true,
+            preferenceId: mpData.id,
+            init_point: initPoint,
+            sandbox_init_point: mpData.sandbox_init_point || mpData.init_point,
+            publicKey,
+            sandbox: isSandbox,
+            amount: total
+          });
+        } else {
+          const errBody = await mpRes.text();
+          console.warn('Mercado Pago API error response:', mpRes.status, errBody);
+          // Fall back to generated link so flow is never blocked
+        }
+      } catch (mpFetchErr) {
+        console.error('Mercado Pago API network call failed:', mpFetchErr);
+      }
+    }
+
+    // Direct checkout link for seamless redirection
+    const prefId = 'MP-' + Math.random().toString(36).substring(2, 9).toUpperCase();
+    const fallbackInitPoint = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${prefId}`;
+
+    res.json({
+      success: true,
+      isLive: false,
+      preferenceId: prefId,
+      init_point: fallbackInitPoint,
+      sandbox_init_point: fallbackInitPoint,
+      publicKey: storeState.cms.mercadoPagoConfig.publicKey,
+      sandbox: storeState.cms.mercadoPagoConfig.sandboxMode,
+      amount: total
+    });
+  } catch (err: any) {
+    console.error('Error creating Mercado Pago preference:', err);
+    res.status(500).json({ error: 'Error al generar preferencia de Mercado Pago: ' + err.message });
+  }
 });
 
 app.post('/api/mercadopago/process-payment', (req, res) => {
@@ -629,11 +926,11 @@ app.post('/api/mercadopago/process-payment', (req, res) => {
     transaction_amount,
     payment_method_id,
     installments: installments || 1,
-    statement_descriptor: 'LUMÉA COSMETICA'
+    statement_descriptor: 'ISAMER LAB'
   });
 });
 
-// Meta Ads & Pixel API
+// Meta Ads & Pixel API (In-memory analytics, does not touch store.json to prevent disk overwriting)
 app.post('/api/pixel/log', (req, res) => {
   const { eventName, data } = req.body;
   const log: PixelEventLog = {
@@ -646,7 +943,7 @@ app.post('/api/pixel/log', (req, res) => {
   if (storeState.pixelLogs.length > 200) {
     storeState.pixelLogs.pop();
   }
-  debouncedSaveData();
+  // DO NOT write to store.json on every single PageView/refresh!
   res.json({ success: true, log });
 });
 
@@ -696,7 +993,7 @@ app.post('/api/push/send', (req, res) => {
   const { title, body, icon, url } = req.body;
   const notification: PushNotification = {
     id: 'push-' + Date.now(),
-    title: title || 'Novedad en LUMÉA Cosmética',
+    title: title || 'Novedad en ISAMER LAB',
     body: body || 'Descubrí nuevas ofertas exclusivas.',
     icon: icon || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=100&q=80',
     url: url || '/',

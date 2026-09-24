@@ -84,21 +84,28 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               )}
 
               {/* Brand and Tag Badges */}
-              <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10">
+              <div className="absolute top-3 left-3 flex flex-col gap-1.5 z-10 items-start">
                 {product.brand && (
-                  <span className={`text-xs font-black px-3 py-1 rounded-full shadow-xs ${
-                    product.brand === 'H2Derm'
-                      ? 'bg-cyan-700 text-white'
-                      : product.brand === 'Mimitos'
-                      ? 'bg-amber-500 text-white'
-                      : product.brand === 'Le Salon'
-                      ? 'bg-purple-700 text-white'
-                      : product.brand === 'SoftCare'
-                      ? 'bg-rose-500 text-white'
-                      : 'bg-neutral-800 text-white'
-                  }`}>
-                    {product.brand}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-xs font-black px-3 py-1 rounded-full shadow-xs ${
+                      product.brand === 'H2Derm'
+                        ? 'bg-cyan-700 text-white'
+                        : product.brand === 'Mimitos'
+                        ? 'bg-amber-500 text-white'
+                        : product.brand === 'Le Salon'
+                        ? 'bg-purple-700 text-white'
+                        : product.brand === 'SoftCare'
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-neutral-800 text-white'
+                    }`}>
+                      {product.brand}
+                    </span>
+                    {(product.brand === 'SoftCare' || product.badges?.some(b => b.toLowerCase().includes('premium'))) && (
+                      <span className="bg-amber-400 text-neutral-950 font-black text-[10px] px-2.5 py-1 rounded-full shadow-xs uppercase tracking-wider flex items-center gap-0.5 border border-amber-300">
+                        ★ Línea Premium
+                      </span>
+                    )}
+                  </div>
                 )}
                 {product.motherDaySpecial && (
                   <div className="bg-[#E6007E] text-white text-xs font-bold px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
@@ -187,9 +194,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </span>
                   )}
                 </div>
-
+                <p className="text-xs text-gray-700 font-semibold mt-1">
+                  ✓ 3 cuotas fijas de {formatCurrency(installments.perInstallment)} con tarjeta o Mercado Pago
+                </p>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  10% de descuento extra abonando por Transferencia Bancaria
+                  10% de descuento abonando por Transferencia Bancaria
                 </p>
               </div>
 

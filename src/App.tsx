@@ -14,19 +14,40 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { Footer } from './components/Footer';
 import { Product, CarouselSlide, StoreCMS, Order } from './types';
 import { INITIAL_PRODUCTS, INITIAL_SLIDES, INITIAL_CMS, INITIAL_ORDERS } from './data/initialData';
+import { persistentStorage } from './utils/persistentStorage';
 import { api } from './services/api';
 import { MessageCircle } from 'lucide-react';
 
 export default function App() {
-  const [cms, setCms] = useState<StoreCMS>(INITIAL_CMS);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [slides, setSlides] = useState<CarouselSlide[]>(INITIAL_SLIDES);
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [initialData] = useState(() => persistentStorage.getInitialState());
+  const [cms, setCms] = useState<StoreCMS>(initialData.cms);
+  const [products, setProducts] = useState<Product[]>(initialData.products);
+  const [slides, setSlides] = useState<CarouselSlide[]>(initialData.slides);
+  const [orders, setOrders] = useState<Order[]>(initialData.orders);
+
+  const handleProductsUpdated = (updated: Product[]) => {
+    setProducts(updated);
+    persistentStorage.saveProducts(updated);
+  };
+
+  const handleCmsUpdated = (updated: StoreCMS) => {
+    setCms(updated);
+    persistentStorage.saveCMS(updated);
+  };
+
+  const handleSlidesUpdated = (updated: CarouselSlide[]) => {
+    setSlides(updated);
+    persistentStorage.saveSlides(updated);
+  };
+
+  const handleOrdersUpdated = (updated: Order[]) => {
+    setOrders(updated);
+  };
 
   // Cart state persisted locally
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem('lumea_cart');
+      const saved = localStorage.getItem('isamer_cart');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -58,38 +79,38 @@ export default function App() {
 
   // Initial load from backend API with localStorage fail-safe
   useEffect(() => {
-    // Fetch products
+    // Fetch products: Server is the single source of truth
     api.getProducts().then(serverProds => {
-      try {
-        const cached = localStorage.getItem('lumea_products_cache');
-        if (cached) {
-          const parsedCache: Product[] = JSON.parse(cached);
-          if (Array.isArray(parsedCache) && parsedCache.length > serverProds.length) {
-            // Local storage has more recent products that weren't on server yet: use them and sync to server
-            setProducts(parsedCache);
-            api.updateAllProducts(parsedCache).catch(() => {});
-            return;
-          }
-        }
-      } catch (e) {
-        // ignore JSON parse error
+      if (Array.isArray(serverProds) && serverProds.length > 0) {
+        setProducts(serverProds);
+        persistentStorage.saveProducts(serverProds);
       }
-      setProducts(serverProds);
     }).catch(() => {
-      try {
-        const cached = localStorage.getItem('lumea_products_cache');
-        if (cached) {
-          const parsedCache: Product[] = JSON.parse(cached);
-          if (Array.isArray(parsedCache) && parsedCache.length > 0) {
-            setProducts(parsedCache);
-          }
-        }
-      } catch (e) {}
+      const local = persistentStorage.getInitialState();
+      if (local.products && local.products.length > 0) {
+        setProducts(local.products);
+      }
     });
+
     // Fetch slides
-    api.getSlides().then(setSlides).catch(() => {});
+    api.getSlides().then(serverSlides => {
+      if (Array.isArray(serverSlides) && serverSlides.length > 0) {
+        setSlides(serverSlides);
+        persistentStorage.saveSlides(serverSlides);
+      }
+    }).catch(() => {});
+
     // Fetch CMS
-    api.getCMS().then(setCms).catch(() => {});
+    api.getCMS().then(serverCms => {
+      if (serverCms) {
+        setCms(prev => {
+          const merged = { ...prev, ...serverCms };
+          persistentStorage.saveCMS(merged);
+          return merged;
+        });
+      }
+    }).catch(() => {});
+
     // Fetch orders
     api.getOrders().then(setOrders).catch(() => {});
 
@@ -121,7 +142,7 @@ export default function App() {
   // Save cart to local storage
   useEffect(() => {
     try {
-      localStorage.setItem('lumea_cart', JSON.stringify(cartItems));
+      localStorage.setItem('isamer_cart', JSON.stringify(cartItems));
     } catch {
       // ignore
     }
@@ -345,7 +366,7 @@ export default function App() {
         <AdminAuthModal
           isOpen={isAdminAuthOpen}
           onClose={() => setIsAdminAuthOpen(false)}
-          correctPin={cms.adminPin || 'lumeanosotros'}
+          correctPin={cms.adminPin || 'isamernosotros'}
           onAuthenticated={() => setIsAdminDashboardOpen(true)}
         />
       )}
@@ -356,13 +377,13 @@ export default function App() {
           isOpen={isAdminDashboardOpen}
           onClose={() => setIsAdminDashboardOpen(false)}
           cms={cms}
-          onCmsUpdated={setCms}
+          onCmsUpdated={handleCmsUpdated}
           products={products}
-          onProductsUpdated={setProducts}
+          onProductsUpdated={handleProductsUpdated}
           slides={slides}
-          onSlidesUpdated={setSlides}
+          onSlidesUpdated={handleSlidesUpdated}
           orders={orders}
-          onOrdersUpdated={setOrders}
+          onOrdersUpdated={handleOrdersUpdated}
         />
       )}
     </div>
