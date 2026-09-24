@@ -2729,7 +2729,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         }
                         className="accent-[#009EE3]"
                       />
-                      <span>Modo Desarrollador / Sandbox</span>
                     </label>
 
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs">

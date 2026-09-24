@@ -521,7 +521,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 >
                   <Smartphone className="w-5 h-5 text-[#009EE3]" />
                   <span className="text-xs font-bold text-gray-900 text-center">Mercado Pago</span>
-                  <span className="text-[10px] text-[#009EE3] font-medium">Dev / Sandbox</span>
                 </button>
 
                 <button
@@ -562,31 +561,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         MP
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-gray-900">Mercado Pago Checkout</h4>
-                        <p className="text-[10px] text-gray-500">Credenciales de desarrollador conectadas</p>
+                        <h4 className="text-xs font-bold text-gray-900">Mercado Pago</h4>
+                        <p className="text-[10px] text-gray-500"></p>
                       </div>
                     </div>
-                    <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
-                      Sandbox / Dev Mode
-                    </span>
                   </div>
 
                   <p className="text-xs text-gray-600 leading-relaxed">
                     Pagá de forma protegida con tu cuenta de Mercado Pago, dinero disponible, tarjeta guardada o generá cupón de pago con acreditación inmediata.
                   </p>
 
-                  <div className="bg-white p-3 rounded-xl border border-gray-100 text-xs space-y-1">
-                    <div className="flex justify-between text-gray-500 text-[11px]">
-                      <span>Public Key configurada:</span>
-                      <span className="font-mono text-gray-800 truncate max-w-50">
-                        {cms.mercadoPagoConfig.publicKey}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-gray-500 text-[11px]">
-                      <span>Estado:</span>
-                      <span className="text-emerald-600 font-bold">Listo para procesar pagos</span>
-                    </div>
-                  </div>
                 </div>
               )}
 
