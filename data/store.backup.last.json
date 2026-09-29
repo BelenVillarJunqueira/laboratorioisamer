@@ -816,11 +816,11 @@
     "freeShippingThreshold": 45000,
     "adminPin": "",
     "createYourBrand": {
-      "title": "Crea tu Propia Marca de Cosmética con ISAMER LAB",
+      "title": "Crea tu Propia Marca de Cosmética con ISAMER COSMÉTICA",
       "subtitle": "Laboratorio Profesional de Desarrollo & Fabricación a Medida",
       "description": "Te acompañamos en cada etapa: formulación dermatológica exclusiva, diseño y rotulado de packaging, registros y producción en lotes accesibles. Tu marca con calidad de laboratorio.",
       "image": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&q=80",
-      "whatsappMessage": "Hola ISAMER LAB! Me gustaría recibir información y cotización para crear mi propia línea de cosmética personalizada.",
+      "whatsappMessage": "Hola ISAMER COSMÉTICA! Me gustaría recibir información y cotización para crear mi propia línea de cosmética personalizada.",
       "enabled": true
     },
     "bankConfig": {
@@ -844,7 +844,7 @@
       "testEventCode": "TEST98231",
       "enabled": true
     },
-    "footerAbout": "ISAMER LAB nace para redefinir el cuidado facial femenino con ingredientes botánicos puros y biotecnología avanzada. Crema hidratante, serums, limpiadores y contornos formulados en Argentina con los más altos estándares de calidad."
+    "footerAbout": "ISAMER COSMÉTICA nace para redefinir el cuidado facial femenino con ingredientes botánicos puros y biotecnología avanzada. Crema hidratante, serums, limpiadores y contornos formulados en Argentina con los más altos estándares de calidad."
   },
   "orders": [
     {
