@@ -1086,7 +1086,7 @@ export const INITIAL_CMS: StoreCMS = {
   "adminPin": "1234",
   "createYourBrand": {
     "title": "Crea tu Propia Marca de Cosmética con ISAMER COSMÉTICA",
-    "subtitle": "Laboratorio Profesional de Desarrollo & Fabricación a Medida",
+    "subtitle": "Cosmética Profesional de Desarrollo & Fabricación a Medida",
     "description": "Te acompañamos en cada etapa: formulación dermatológica exclusiva, diseño y rotulado de packaging, registros y producción en lotes accesibles. Tu marca con calidad de laboratorio.",
     "image": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&q=80",
     "whatsappMessage": "Hola ISAMER COSMÉTICA! Me gustaría recibir información y cotización para crear mi propia línea de cosmética personalizada.",
