@@ -1075,7 +1075,7 @@ export const INITIAL_CMS: StoreCMS = {
   "announcementBar": "✨ BIENVENIDOS A ISAMER COSMÉTICA | ALTA DERMOCOSMÉTICA & CATÁLOGO MULTIMARCA | ENVÍOS A TODO EL PAÍS",
   "announcementActive": true,
   "enableMothersDay": true,
-  "whatsappNumber": "5491123456789",
+  "whatsappNumber": "5493515056742",
   "instagramHandle": "@isamer.lab",
   "emailContact": "contacto@isamerlab.com",
   "mothersDayPromoTitle": "Día de la Madre en ISAMER COSMÉTICA",
@@ -1083,7 +1083,7 @@ export const INITIAL_CMS: StoreCMS = {
   "mothersDayPromoBanner": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200&q=80",
   "mothersDayPromoDiscount": "30% OFF",
   "freeShippingThreshold": 50000,
-  "adminPin": "1234",
+  "adminPin": "isamernosotros",
   "createYourBrand": {
     "title": "Crea tu propia marca de cosmética con ISAMER",
     "subtitle": "Cosmética Profesional de Desarrollo & Fabricación a Medida",
