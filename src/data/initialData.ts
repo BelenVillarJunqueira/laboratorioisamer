@@ -1085,7 +1085,7 @@ export const INITIAL_CMS: StoreCMS = {
   "freeShippingThreshold": 50000,
   "adminPin": "1234",
   "createYourBrand": {
-    "title": "Crea tu Propia Marca de Cosmética con ISAMER COSMÉTICA",
+    "title": "Crea tu propia marca de cosmética con ISAMER",
     "subtitle": "Cosmética Profesional de Desarrollo & Fabricación a Medida",
     "description": "Te acompañamos en cada etapa: formulación dermatológica exclusiva, diseño y rotulado de packaging, registros y producción en lotes accesibles. Tu marca con calidad de laboratorio.",
     "image": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&q=80",
