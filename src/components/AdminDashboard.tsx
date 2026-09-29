@@ -106,10 +106,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pastedJson, setPastedJson] = useState('');
 
+  // Database cloud persistence state
+  const [dbStatus, setDbStatus] = useState<{
+    isConnected: boolean;
+    type: 'mongodb' | 'postgres' | 'local_disk';
+    details: string;
+    databaseUrlSet: boolean;
+    providerName?: string;
+  } | null>(null);
+  const [showDbGuideModal, setShowDbGuideModal] = useState(false);
+  const [isSyncingDb, setIsSyncingDb] = useState(false);
+
+  const refreshDbStatus = async () => {
+    try {
+      const status = await api.getDbStatus();
+      setDbStatus(status);
+    } catch {
+      setDbStatus({
+        isConnected: false,
+        type: 'local_disk',
+        details: 'Usando almacenamiento local',
+        databaseUrlSet: false
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      refreshDbStatus();
+    }
+  }, [isOpen]);
+
+  const handleSyncToCloudDb = async () => {
+    setIsSyncingDb(true);
+    showToast('Sincronizando catálogo e imágenes a la nube...');
+    try {
+      await api.syncFullData({
+        products: localProducts,
+        cms: localCms,
+        slides: localSlides,
+        orders: localOrders
+      });
+      await api.syncDb();
+      await refreshDbStatus();
+      showToast('¡Catálogo e imágenes sincronizados y guardados permanentemente!');
+    } catch (err: any) {
+      showToast('Guardado localmente. Error cloud: ' + err.message);
+    } finally {
+      setIsSyncingDb(false);
+    }
+  };
+
   // Check browser backup on mount
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('isamer_catalog_backup');
+      const raw = localStorage.getItem('lumea_catalog_backup');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.products) && parsed.products.length > 0) {
@@ -123,7 +174,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   useEffect(() => {
     if (localProducts.length > 0) {
       try {
-        localStorage.setItem('isamer_catalog_backup', JSON.stringify({
+        localStorage.setItem('lumea_catalog_backup', JSON.stringify({
           timestamp: new Date().toISOString(),
           count: localProducts.length,
           products: localProducts
@@ -162,7 +213,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `backup-tienda-isamer-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `backup-tienda-lumea-${new Date().toISOString().split('T')[0]}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -374,13 +425,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Helper to persist to localStorage backup immediately
   const persistToLocalBackup = (prods: Product[]) => {
     try {
-      localStorage.setItem('isamer_products_cache', JSON.stringify(prods));
+      localStorage.setItem('lumea_products_cache', JSON.stringify(prods));
       const backupObj = {
         timestamp: new Date().toISOString(),
         count: prods.length,
         products: prods
       };
-      localStorage.setItem('isamer_catalog_backup', JSON.stringify(backupObj));
+      localStorage.setItem('lumea_catalog_backup', JSON.stringify(backupObj));
       setBrowserBackup(backupObj);
     } catch (e) {
       console.warn('LocalStorage save warning:', e);
@@ -735,6 +786,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Database Cloud Persistence Status Badge */}
+            {dbStatus?.isConnected ? (
+              <button
+                onClick={() => setShowDbGuideModal(true)}
+                className="flex items-center gap-1.5 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                title={`${dbStatus.providerName || 'Base de Datos Cloud'}: Tus productos y fotos nunca se borran`}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">{dbStatus.providerName || (dbStatus.type === 'mongodb' ? 'MongoDB Atlas' : 'PostgreSQL')} Activo</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowDbGuideModal(true)}
+                className="flex items-center gap-1.5 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-600/50 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+                title="Conectá MongoDB Atlas (100% gratis permanente, no vence como Render) para guardar tus cambios para siempre."
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Conectar MongoDB Gratis</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleSyncToCloudDb}
+              disabled={isSyncingDb}
+              className="flex items-center gap-1.5 bg-[#E6007E] hover:bg-[#c7006d] disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-md"
+              title="Sincronizar y blindar todo el catálogo en la nube"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDb ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">{isSyncingDb ? 'Guardando...' : 'Sincronizar Nube'}</span>
+            </button>
+
             <button
               onClick={handleDownloadBackup}
               className="hidden sm:flex items-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
@@ -752,6 +836,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Persistence Banner if running on ephemeral disk */}
+        {dbStatus && !dbStatus.isConnected && (
+          <div className="bg-emerald-950/40 border-b border-emerald-800/40 px-6 py-2.5 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-emerald-200">
+              <Database className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span>
+                <strong>Recomendado:</strong> Conectá <strong>MongoDB Atlas (Gratis para siempre, no vence como Render)</strong> para que tus productos, precios e imágenes queden guardados de por vida sin borrarse jamás al reiniciar el sitio.
+              </span>
+            </div>
+            <button
+              onClick={() => setShowDbGuideModal(true)}
+              className="shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-lg text-[11px] transition-colors shadow-sm cursor-pointer"
+            >
+              Guía MongoDB (2 min)
+            </button>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-1 overflow-x-auto px-4 py-2 border-b border-neutral-800 bg-neutral-950/40 text-xs font-semibold no-scrollbar">
@@ -1318,7 +1420,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div>
                   <h3 className="text-sm font-bold text-white flex items-center gap-2">
                     <FlaskConical className="w-4 h-4 text-[#FF80BF]" />
-                    <span>Catálogo & Marcas del Laboratorio ({localProducts.length} productos en total)</span>
+                    <span>Catálogo & Marcas de cosmética ({localProducts.length} productos en total)</span>
                   </h3>
                   <p className="text-[11px] text-neutral-400">
                     Administrá productos de cada marca (H2Derm, SoftCare Premium, Mimitos, Le Salon), 3 fotos por producto, reels, precios, stock y categorías.
@@ -1996,7 +2098,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {/* FORM FIELDS */}
                   <div className="space-y-4 pt-2 border-t border-neutral-700">
                     <h4 className="text-xs font-bold text-[#FF80BF] uppercase tracking-wider">
-                      Datos del Cosmético & Laboratorio
+                      Datos del Cosmético 
                     </h4>
 
                     {/* Brand, Category, SKU */}
@@ -2480,7 +2582,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="flex items-center gap-2">
                       <FlaskConical className="w-4 h-4 text-[#FF80BF]" />
                       <h4 className="text-xs font-bold text-[#FF80BF] uppercase tracking-wider">
-                        Apartado "Crea tu marca con nosotros" (Laboratorio)
+                        Apartado "Crea tu marca con nosotros" 
                       </h4>
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer text-xs">
@@ -2493,10 +2595,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             createYourBrand: {
                               ...(localCms.createYourBrand || {
                                 title: 'Crea tu marca con nosotros',
-                                subtitle: 'Desarrollo integral de productos cosméticos en nuestro laboratorio',
-                                description: 'Tu sueño se puede hacer realidad, crea tu propia marca de productos con nuestro laboratorio.',
+                                subtitle: 'Desarrollo integral de productos cosméticos',
+                                description: 'Tu sueño se puede hacer realidad, crea tu propia marca de productos.',
                                 image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=1200&q=85',
-                                whatsappMessage: '¡Hola! Quiero información para crear mi propia marca de productos con el laboratorio.',
+                                whatsappMessage: '¡Hola! Quiero información para crear mi propia marca de productos .',
                                 enabled: true
                               }),
                               enabled: e.target.checked
@@ -2510,7 +2612,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
 
                   <p className="text-[11px] text-neutral-400">
-                    Sección institucional para invitar a clientes a desarrollar su propia línea cosmética con tu laboratorio.
+                    Sección institucional para invitar a clientes a desarrollar su propia línea cosmética.
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2568,7 +2670,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             } as any
                           })
                         }
-                        placeholder="Tu sueño se puede hacer realidad, crea tu propia marca de productos con nuestro laboratorio."
+                        placeholder="Tu sueño se puede hacer realidad, crea tu propia marca de productos con nosotros."
                         className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E]"
                       />
                     </div>
@@ -2729,6 +2831,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         }
                         className="accent-[#009EE3]"
                       />
+                      <span>Modo Desarrollador / Sandbox</span>
                     </label>
 
                     <label className="flex items-center gap-1.5 cursor-pointer text-xs">
@@ -3158,6 +3261,169 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span>Restaurar Productos Ahora</span>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Database Guide Modal */}
+        {showDbGuideModal && (
+          <div className="fixed inset-0 z-60 bg-black/85 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-neutral-900 border border-neutral-700 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${dbStatus?.isConnected ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`}>
+                    <Database className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-white">
+                      {dbStatus?.isConnected ? `Base de Datos Cloud Conectada (${dbStatus.providerName || 'Activa'})` : 'Conectar MongoDB Atlas (Gratis Permanente)'}
+                    </h3>
+                    <p className="text-xs text-neutral-400">
+                      {dbStatus?.isConnected
+                        ? 'Tus productos, fotos e imágenes se guardan de forma permanente y no se borrarán jamás.'
+                        : 'A diferencia de Render Postgres que dura 30 días, MongoDB Atlas es 100% GRATIS DE POR VIDA.'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDbGuideModal(false)}
+                  className="text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-neutral-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {dbStatus?.isConnected ? (
+                <div className="space-y-4">
+                  <div className="bg-emerald-950/40 border border-emerald-700/40 rounded-xl p-4 flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold text-emerald-300">¡Tu tienda está blindada contra reinicios!</p>
+                      <p className="text-emerald-200/80">
+                        Conectado a <strong className="text-white">{dbStatus.providerName || 'Base de Datos Cloud'}</strong>. Cada producto que crees o edites desde este panel, y cada foto que subas, se guardan en la nube permanentemente. Aunque Render se suspenda o actualices el código, tus datos permanecen intactos para siempre.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-neutral-950 p-4 rounded-xl border border-neutral-800 text-xs">
+                    <div>
+                      <p className="text-neutral-400">Estado de conexión:</p>
+                      <p className="font-semibold text-emerald-400">{dbStatus.details || 'Activo y permanente'}</p>
+                    </div>
+                    <button
+                      onClick={handleSyncToCloudDb}
+                      disabled={isSyncingDb}
+                      className="bg-[#E6007E] hover:bg-[#c7006d] text-white px-4 py-2 rounded-xl font-bold flex items-center gap-1.5 shadow-md transition-colors"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingDb ? 'animate-spin' : ''}`} />
+                      <span>{isSyncingDb ? 'Sincronizando...' : 'Forzar Sincronización'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 text-xs">
+                  <div className="bg-emerald-950/30 border border-emerald-800/40 rounded-xl p-4 text-emerald-200">
+                    <p className="font-bold text-emerald-300 mb-1">¿Por qué usar MongoDB Atlas en vez de Render Postgres?</p>
+                    <p className="text-neutral-300 leading-relaxed">
+                      El plan gratuito de PostgreSQL en Render <strong>caduca a los 30 días</strong>. En cambio, <strong>MongoDB Atlas (Cluster M0)</strong> es <strong>100% GRATIS DE POR VIDA</strong>, nunca vence y es la misma base de datos robusta que usamos en Lumbar Fix y BBImport.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 bg-neutral-950 p-4 rounded-xl border border-neutral-800">
+                    <h4 className="font-bold text-white text-xs uppercase tracking-wider text-[#FF80BF] flex items-center justify-between">
+                      <span>Paso a Paso MongoDB Atlas (2 minutos):</span>
+                      <span className="text-[10px] text-emerald-400 font-mono normal-case">Sin tarjeta de crédito</span>
+                    </h4>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-[#E6007E] text-white flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">1</span>
+                      <div>
+                        <p className="font-semibold text-white">Entrar a MongoDB Atlas</p>
+                        <p className="text-neutral-400 text-[11px]">
+                          Ingresá a <a href="https://cloud.mongodb.com" target="_blank" rel="noopener noreferrer" className="text-[#FF80BF] underline inline-flex items-center gap-1">cloud.mongodb.com <ExternalLink className="w-3 h-3 inline" /></a> con tu cuenta (la misma que usaste en tus otros proyectos o creá una nueva con Google).
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-[#E6007E] text-white flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">2</span>
+                      <div>
+                        <p className="font-semibold text-white">Crear Cluster Gratuito M0</p>
+                        <p className="text-neutral-400 text-[11px]">
+                          Hacé clic en <strong>"Create"</strong>, seleccioná el tier <strong>M0 (Free)</strong>, elegí cualquier proveedor/región (AWS us-east-1 o la más cercana) y hacé clic en <strong>"Create Deployment"</strong>.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-[#E6007E] text-white flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">3</span>
+                      <div>
+                        <p className="font-semibold text-white">Configurar Usuario y Acceso de Red</p>
+                        <p className="text-neutral-400 text-[11px]">
+                          • En <strong>Database Access</strong>: Creá un usuario con usuario y contraseña (ej: <code className="text-amber-300">lumea_admin</code>).<br />
+                          • En <strong>Network Access</strong>: Hacé clic en <em>"Add IP Address"</em> y seleccioná <strong>"Allow Access from Anywhere" (<code className="text-amber-300">0.0.0.0/0</code>)</strong> para que Render pueda conectarse.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-[#E6007E] text-white flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">4</span>
+                      <div>
+                        <p className="font-semibold text-white">Copiar Connection String</p>
+                        <p className="text-neutral-400 text-[11px]">
+                          En tu base de datos, hacé clic en <strong>"Connect"</strong> &gt; <strong>"Drivers"</strong> (Node.js) y copiá el URI que luce así:<br />
+                          <code className="text-emerald-300 bg-neutral-900 px-1 py-0.5 rounded font-mono text-[10px] break-all block mt-1">
+                            mongodb+srv://&lt;usuario&gt;:&lt;password&gt;@cluster0.xxxx.mongodb.net/isamer_store?retryWrites=true&w=majority
+                          </code>
+                          <span className="text-[10px] text-neutral-400">(Reemplazá <code className="text-white">&lt;password&gt;</code> por la contraseña que creaste).</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-[#E6007E] text-white flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">5</span>
+                      <div>
+                        <p className="font-semibold text-white">Pegar la variable en Render</p>
+                        <p className="text-neutral-400 text-[11px]">
+                          En <a href="https://dashboard.render.com" target="_blank" rel="noopener noreferrer" className="text-[#FF80BF] underline inline-flex items-center gap-1">Render <ExternalLink className="w-3 h-3 inline" /></a>, andá a tu Web Service &gt; pestaña <strong>"Environment"</strong> y agregá:<br />
+                          • <strong>Key:</strong> <code className="text-emerald-300 bg-neutral-900 px-1 py-0.5 rounded font-mono">MONGODB_URI</code><br />
+                          • <strong>Value:</strong> <em>(Tu connection string de MongoDB)</em><br />
+                          Hacé clic en <strong>"Save Changes"</strong>.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">✓</span>
+                      <div>
+                        <p className="font-semibold text-emerald-300">¡Solución definitiva y para siempre!</p>
+                        <p className="text-neutral-400 text-[11px]">
+                          El sitio se conectará de inmediato a MongoDB Atlas. Todos tus productos, precios, fotos y pedidos quedarán guardados en la nube para siempre, sin que se borre nada al reiniciar o actualizar.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={refreshDbStatus}
+                      className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 px-3 py-2 rounded-xl font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Verificar Conexión Ahora</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDbGuideModal(false)}
+                      className="bg-[#E6007E] hover:bg-[#c7006d] text-white px-5 py-2 rounded-xl font-bold shadow-md transition-colors cursor-pointer"
+                    >
+                      Entendido
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

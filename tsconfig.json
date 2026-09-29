@@ -26,6 +26,7 @@
   "include": [
     "src/**/*",
     "server.ts",
+    "server/**/*",
     "vite.config.ts"
   ],
   "exclude": [

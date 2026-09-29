@@ -47,7 +47,7 @@ export default function App() {
   // Cart state persisted locally
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem('isamer_cart');
+      const saved = localStorage.getItem('lumea_cart');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -79,13 +79,30 @@ export default function App() {
 
   // Initial load from backend API with localStorage fail-safe
   useEffect(() => {
-    // Fetch products: Server is the single source of truth
+    // Fetch products: Server is the primary source of truth, but we protect user-uploaded products
     api.getProducts().then(serverProds => {
       if (Array.isArray(serverProds) && serverProds.length > 0) {
-        setProducts(serverProds);
-        persistentStorage.saveProducts(serverProds);
+        const local = persistentStorage.getInitialState();
+        const serverIds = new Set(serverProds.map(p => p.id));
+        // Find custom products uploaded locally that might be missing on a restarted server
+        const missingOnServer = (local.products || []).filter(
+          p => !serverIds.has(p.id) && (p.id.startsWith('prod-') || p.id.startsWith('custom-'))
+        );
+
+        if (missingOnServer.length > 0) {
+          console.warn(`[SYNC RESCUE] ${missingOnServer.length} productos locales recuperados. Sincronizando con el servidor...`);
+          const merged = [...serverProds, ...missingOnServer];
+          setProducts(merged);
+          persistentStorage.saveProducts(merged);
+          // Sync missing products up to the backend automatically
+          api.updateAllProducts(merged).catch(() => {});
+        } else {
+          setProducts(serverProds);
+          persistentStorage.saveProducts(serverProds);
+        }
       }
-    }).catch(() => {
+    }).catch(err => {
+      console.warn('Backend iniciando o inaccesible, manteniendo productos locales en pantalla:', err);
       const local = persistentStorage.getInitialState();
       if (local.products && local.products.length > 0) {
         setProducts(local.products);
@@ -142,7 +159,7 @@ export default function App() {
   // Save cart to local storage
   useEffect(() => {
     try {
-      localStorage.setItem('isamer_cart', JSON.stringify(cartItems));
+      localStorage.setItem('lumea_cart', JSON.stringify(cartItems));
     } catch {
       // ignore
     }
@@ -366,7 +383,7 @@ export default function App() {
         <AdminAuthModal
           isOpen={isAdminAuthOpen}
           onClose={() => setIsAdminAuthOpen(false)}
-          correctPin={cms.adminPin || 'isamernosotros'}
+          correctPin={cms.adminPin || 'lumeanosotros'}
           onAuthenticated={() => setIsAdminDashboardOpen(true)}
         />
       )}

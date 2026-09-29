@@ -1027,7 +1027,7 @@ export const INITIAL_SLIDES: CarouselSlide[] = [
   },
   {
     "id": "slide-2",
-    "title": "Especial Día de la Madre en ISAMER LAB",
+    "title": "Especial Día de la Madre en ISAMER COSMÉTICA",
     "subtitle": "El regalo más hermoso para mamá: Piel radiante, hidratada y llena de vida",
     "highlightText": "Hasta 30% OFF en Sets de Rutina Facial + 3 y 6 Cuotas",
     "badge": "Campaña Oficial 2026",
@@ -1055,10 +1055,10 @@ export const INITIAL_SLIDES: CarouselSlide[] = [
   },
   {
     "id": "slide-4",
-    "title": "Crea tu Marca con ISAMER LAB",
+    "title": "Crea tu Marca con ISAMER COSMÉTICA",
     "subtitle": "Tu sueño se puede hacer realidad: Desarrollamos tu propia línea de cosmética personalizada con packaging y formulación a medida",
     "highlightText": "🧪 Fórmulas Exclusivas • Lotes Accesibles • Asesoría Técnica",
-    "badge": "MARCA BLANCA & LABORATORIO",
+    "badge": "MARCA BLANCA & COSMÉTICA",
     "buttonText": "Consultar por WhatsApp",
     "buttonLink": "#crea-tu-marca",
     "image": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=1600&q=85",
@@ -1071,25 +1071,25 @@ export const INITIAL_SLIDES: CarouselSlide[] = [
 
 export const INITIAL_CMS: StoreCMS = {
   "storeName": "ISAMER",
-  "storeTagline": "LAB",
-  "announcementBar": "✨ BIENVENIDOS A ISAMER LAB | ALTA DERMOCOSMÉTICA & CATÁLOGO MULTIMARCA | ENVÍOS A TODO EL PAÍS",
+  "storeTagline": "COSMÉTICA",
+  "announcementBar": "✨ BIENVENIDOS A ISAMER COSMÉTICA | ALTA DERMOCOSMÉTICA & CATÁLOGO MULTIMARCA | ENVÍOS A TODO EL PAÍS",
   "announcementActive": true,
   "enableMothersDay": true,
   "whatsappNumber": "5491123456789",
   "instagramHandle": "@isamer.lab",
   "emailContact": "contacto@isamerlab.com",
-  "mothersDayPromoTitle": "Día de la Madre en ISAMER LAB",
+  "mothersDayPromoTitle": "Día de la Madre en ISAMER COSMÉTICA",
   "mothersDayPromoSubtitle": "Edición Limitada de Sets Faciales & Rutinas Completas de Cuidado",
   "mothersDayPromoBanner": "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=1200&q=80",
   "mothersDayPromoDiscount": "30% OFF",
   "freeShippingThreshold": 50000,
   "adminPin": "1234",
   "createYourBrand": {
-    "title": "Crea tu Propia Marca de Cosmética con ISAMER LAB",
+    "title": "Crea tu Propia Marca de Cosmética con ISAMER COSMÉTICA",
     "subtitle": "Laboratorio Profesional de Desarrollo & Fabricación a Medida",
     "description": "Te acompañamos en cada etapa: formulación dermatológica exclusiva, diseño y rotulado de packaging, registros y producción en lotes accesibles. Tu marca con calidad de laboratorio.",
     "image": "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&q=80",
-    "whatsappMessage": "Hola ISAMER LAB! Me gustaría recibir información y cotización para crear mi propia línea de cosmética personalizada.",
+    "whatsappMessage": "Hola ISAMER COSMÉTICA! Me gustaría recibir información y cotización para crear mi propia línea de cosmética personalizada.",
     "enabled": true
   },
   "bankConfig": {
@@ -1112,7 +1112,7 @@ export const INITIAL_CMS: StoreCMS = {
     "conversionsApiToken": "",
     "enabled": true
   },
-  "footerAbout": "ISAMER LAB - Laboratorio de alta cosmética y catálogo multimarca: H2Derm, SoftCare (Línea Premium), Mimitos y Le Salon. Fórmulas dermatológicas desarrolladas en Argentina con los más altos estándares de pureza y biotecnología."
+  "footerAbout": "ISAMER COSMÉTICA - Alta cosmética y catálogo multimarca: H2Derm, SoftCare (Línea Premium), Mimitos y Le Salon. Fórmulas dermatológicas desarrolladas en Argentina con los más altos estándares de pureza y biotecnología."
 };
 
 export const INITIAL_ORDERS: Order[] = [

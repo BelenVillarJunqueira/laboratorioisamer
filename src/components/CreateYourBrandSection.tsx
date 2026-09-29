@@ -9,10 +9,10 @@ interface CreateYourBrandSectionProps {
 export const CreateYourBrandSection: React.FC<CreateYourBrandSectionProps> = ({ cms }) => {
     const brandData = cms.createYourBrand || {
         title: 'Crea tu marca con nosotros',
-        subtitle: 'Desarrollo integral de productos cosméticos en nuestro laboratorio',
-        description: 'Tu sueño se puede hacer realidad, crea tu propia marca de productos con nuestro laboratorio.',
+        subtitle: 'Desarrollo integral de productos cosméticos',
+        description: 'Tu sueño se puede hacer realidad, crea tu propia marca de productos.',
         image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=1200&q=85',
-        whatsappMessage: '¡Hola! Quiero información para crear mi propia marca de productos con el laboratorio.',
+        whatsappMessage: '¡Hola! Quiero información para crear mi propia marca de productos.',
         enabled: true
     };
 
@@ -20,7 +20,7 @@ export const CreateYourBrandSection: React.FC<CreateYourBrandSectionProps> = ({ 
 
     const whatsappPhone = (cms.whatsappNumber || '5493515056742').replace(/\D/g, '');
     const encodedMsg = encodeURIComponent(
-        brandData.whatsappMessage || '¡Hola! Quiero información para crear mi propia marca de productos con el laboratorio.'
+        brandData.whatsappMessage || '¡Hola! Quiero información para crear mi propia marca de productos.'
     );
     const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodedMsg}`;
 
@@ -37,7 +37,7 @@ export const CreateYourBrandSection: React.FC<CreateYourBrandSectionProps> = ({ 
                     <div className="lg:col-span-7 space-y-6">
                         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-xs text-[#FF80BF] font-semibold tracking-wide uppercase">
                             <FlaskConical className="w-3.5 h-3.5 text-[#FF80BF]" />
-                            <span>Laboratorio & Marca Blanca</span>
+                            <span>Cosmética & Marca Blanca</span>
                         </div>
 
                         <div className="space-y-3">
@@ -45,10 +45,10 @@ export const CreateYourBrandSection: React.FC<CreateYourBrandSectionProps> = ({ 
                                 {brandData.title || 'Crea tu marca con nosotros'}
                             </h2>
                             <p className="text-lg sm:text-xl text-[#FF80BF] font-medium">
-                                {brandData.subtitle || 'Desarrollo integral de productos cosméticos en nuestro laboratorio'}
+                                {brandData.subtitle || 'Desarrollo integral de productos cosméticos'}
                             </p>
                             <p className="text-base sm:text-lg text-neutral-300 leading-relaxed font-light pt-1">
-                                "{brandData.description || 'Tu sueño se puede hacer realidad, crea tu propia marca de productos con nuestro laboratorio.'}"
+                                "{brandData.description || 'Tu sueño se puede hacer realidad, crea tu propia marca de productos.'}"
                             </p>
                         </div>
 
@@ -112,7 +112,7 @@ export const CreateYourBrandSection: React.FC<CreateYourBrandSectionProps> = ({ 
                                 className="inline-flex items-center justify-center gap-2.5 bg-[#E6007E] hover:bg-[#C9006B] text-white px-7 py-3.5 rounded-2xl font-bold text-sm sm:text-base shadow-xl transition-transform hover:scale-105 active:scale-95"
                             >
                                 <MessageCircle className="w-5 h-5 text-white" />
-                                <span>Hablar con un Asesor de Laboratorio</span>
+                                <span>Hablar con un Asesor</span>
                                 <ArrowRight className="w-4 h-4 ml-1" />
                             </a>
 

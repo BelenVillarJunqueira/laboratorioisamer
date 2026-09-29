@@ -69,14 +69,14 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
   const filteredProducts = [...products]
     .sort((a, b) => (a.order || 0) - (b.order || 0))
     .filter(product => {
-    // Brand match (ISAMER LAB is the laboratory/store, not a product brand)
+    // Brand match (ISAMER COSMETICA is the laboratory/store, not a product brand)
     const prodBrand = product.brand || 'H2Derm';
     const matchBrand =
       selectedBrand === 'Todas' ||
       normalizeText(prodBrand) === normalizeText(selectedBrand) ||
       (normalizeText(selectedBrand).includes('salon') && normalizeText(prodBrand).includes('salon')) ||
       (normalizeText(selectedBrand).includes('soft') && normalizeText(prodBrand).includes('soft')) ||
-      (normalizeText(selectedBrand).includes('mimito') && normalizeText(prodBrand).includes('mimit'));
+      (normalizeText(selectedBrand).includes('mimito') && normalizeText(prodBrand).includes('mimito'));
 
     // Category match
     const matchCategory =
@@ -101,7 +101,7 @@ export const ProductGrid: React.FC<ProductGridProps> = ({
       <div className="text-center max-w-2xl mx-auto mb-8 space-y-3">
         <div className="inline-flex items-center gap-1.5 bg-pink-100 text-[#E6007E] text-xs uppercase font-extrabold tracking-widest px-3.5 py-1.5 rounded-full">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Laboratorio Oficial • Catálogo Multimarca</span>
+          <span>Cosmética Oficial • Catálogo Multimarca</span>
         </div>
         <h2 className="font-['Playfair_Display'] text-3xl sm:text-4xl font-extrabold text-gray-900 tracking-tight">
           Nuestras Líneas y Productos

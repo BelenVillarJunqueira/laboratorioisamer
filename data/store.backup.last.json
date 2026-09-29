@@ -291,7 +291,7 @@
     },
     {
       "id": "prod-1790224164689",
-      "name": "Crema + Losión",
+      "name": "Crema + Loción",
       "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
       "brand": "H2Derm",
       "order": 8,
@@ -301,7 +301,7 @@
       "discountPercentage": 15,
       "image": "/uploads/cremayemulsionpng-1790224177819-f343r.png",
       "secondaryImages": [],
-      "description": "Pack dúo emulsión piel sensibles + crema hidratante. Lleva este combo ideal para la rutina diaria en casa.",
+      "description": "Pack dúo Loción piel sensibles + crema hidratante. Lleva este combo ideal para la rutina diaria en casa.",
       "howToUse": "",
       "benefits": [
         "Fórmula hipoalergénica",
@@ -524,14 +524,43 @@
       "order": 15
     },
     {
-      "id": "prod-1790225022181",
-      "name": "Acondicionador Argán ",
+      "id": "prod-1790709113948",
+      "name": "Shampoo Argán",
       "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
       "brand": "Le Salon",
       "order": 16,
       "category": "Capilar",
-      "price": 15000,
-      "originalPrice": 18000,
+      "price": 36000,
+      "originalPrice": 43000,
+      "discountPercentage": 15,
+      "image": "/uploads/WhatsAppImage2026-09-23at13185754jpeg-1790709123959-3a94d.jpg",
+      "secondaryImages": [],
+      "description": "El shampoo de argán es un limpiador capilar altamente hidratante que nutre profundamente, repara las puntas abiertas y aporta un brillo intenso al cabello seco o dañado. Su ingrediente estrella es el aceite de argán, conocido como el \"oro líquido de Marruecos\", el cual es rico en vitamina E, ácidos grasos esenciales y antioxidantes.",
+      "howToUse": "A diferencia del de keratina, el shampoo de argán es de uso frecuente o diario, ya que su función principal es humectar y no satura el cabello con proteínas. Es el aliado perfecto para melenas resecas, expuestas al sol o castigadas por el calor.\n",
+      "benefits": [
+        "Fórmula hipoalergénica",
+        "Resultados comprobados",
+        "Apta para todo tipo de piel"
+      ],
+      "badges": [
+        "Nuevo Lanzamiento"
+      ],
+      "featured": false,
+      "stock": 50,
+      "rating": 5,
+      "reviewsCount": 1,
+      "sku": "LE -3948",
+      "motherDaySpecial": true
+    },
+    {
+      "id": "prod-1790225022181",
+      "name": "Acondicionador Argán ",
+      "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
+      "brand": "Le Salon",
+      "order": 17,
+      "category": "Capilar",
+      "price": 32000,
+      "originalPrice": 40000,
       "discountPercentage": 15,
       "image": "/uploads/WhatsAppImage2026-09-23at131854jpeg-1790225051053-djld6.jpg",
       "secondaryImages": [],
@@ -553,19 +582,77 @@
       "motherDaySpecial": true
     },
     {
-      "id": "prod-1790225165769",
-      "name": "Shampu Botox",
+      "id": "prod-1790709251080",
+      "name": "Combo Argán ",
       "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
       "brand": "Le Salon",
-      "order": 17,
+      "order": 18,
+      "category": "Packs",
+      "price": 57990,
+      "originalPrice": 63000,
+      "discountPercentage": 15,
+      "image": "/uploads/WhatsAppImage2026-09-23at131858468jpeg-1790709262821-by3nz.jpg",
+      "secondaryImages": [],
+      "description": "El combo de shampoo y acondicionador de argán es un sistema de cuidado intensivo diseñado para limpiar con suavidad, hidratar profundamente y sellar la humedad en cabellos secos, opacos o dañados. Al combinar ambos productos, se logra potenciar el efecto nutritivo del aceite de argán, restaurando la elasticidad del cabello desde la raíz hasta las puntas y eliminando el frizz de forma duradera.",
+      "howToUse": "Para maximizar los resultados de este tratamiento, sigue estos pasos secuenciales:\n1. Paso 1: Lavado con el Shampoo: Aplica el shampoo sobre el cabello completamente mojado. Masajea únicamente el cuero cabelludo con las yemas de los dedos hasta formar espuma y deja que esta se deslice hacia las puntas al enjuagar con agua tibia. Retira con abundante agua.\n2. Paso 2: Retirar el exceso de agua: Antes de aplicar el acondicionador, escurre suavemente el cabello con las manos o una toalla. El exceso de agua actúa como una barrera e impide que el acondicionador penetre correctamente.\n3. Paso 3: Aplicación del Acondicionador: Coloca una cantidad moderada de acondicionador de medios a puntas (evita tocar la raíz para que el pelo no pierda volumen ni se engrase). Utiliza tus dedos o un peine de dientes anchos para distribuir el producto y desenredar.\n4. Paso 4: Tiempo de pose: Deja actuar el acondicionador entre 2 y 3 minutos para que los aceites esenciales penetren y suavicen la fibra.\n5. Paso 5: Enjuague final: Enjuaga con abundante agua. Se recomienda terminar con agua fría para sellar por completo la cutícula, lo que maximiza el brillo y controla el frizz.",
+      "benefits": [
+        "Fórmula hipoalergénica",
+        "Resultados comprobados",
+        "Apta para todo tipo de piel"
+      ],
+      "badges": [
+        "Nuevo Lanzamiento"
+      ],
+      "featured": false,
+      "stock": 50,
+      "rating": 5,
+      "reviewsCount": 1,
+      "sku": "LE -1080",
+      "motherDaySpecial": true
+    },
+    {
+      "id": "prod-1790709710550",
+      "name": "Shompoo Botox ",
+      "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
+      "brand": "Le Salon",
+      "order": 19,
+      "category": "Capilar",
+      "price": 35989,
+      "originalPrice": 40000,
+      "discountPercentage": 15,
+      "image": "/uploads/WhatsAppImage2026-09-23at1319014158jpeg-1790709748944-wgw8k.jpg",
+      "secondaryImages": [],
+      "description": "El shampoo de botox (o efecto bótox) es un limpiador diseñado para rejuvenecer, rellenar e hidratar profundamente el cabello envejecido, seco o severamente dañado por procesos químicos. A diferencia del bótox estético, no contiene toxina botulínica; su nombre se debe a que \"rellena\" la fibra capilar gracias a una potente combinación de ácido hialurónico, colágeno y aminoácidos.",
+      "howToUse": "1. Humedecer: Moja el cabello por completo utilizando agua tibia.\n2. Aplicar y masajear: Coloca una cantidad moderada en la palma de tu mano, distribúyela sobre el cuero cabelludo y masajea suavemente con las yemas de los dedos hasta generar una espuma cremosa.\n3. Tiempo de absorción: Deja actuar la espuma entre 2 y 3 minutos en el cabello antes de enjuagar. Esto permite que los activos hidratantes comiencen a penetrar la fibra porosa.\n4. Enjuague total: Retira el producto con abundante agua templada. Asegúrate de que no queden residuos para que el pelo no quede pesado.\nFrecuencia de uso\nSe recomienda utilizarlo de 2 a 3 veces por semana. Lo ideal es alternarlo o complementarlo siempre con una máscara capilar de efecto bótox o acondicionador de la misma línea para sellar por completo el tratamiento de hidratación.\n¿Estás buscando este shampoo para mantener un tratamiento de salón o deseas usarlo como tu rutina de hidratación diaria para reparar el daño? Si me lo indicas, puedo sugerirte qué componentes adicionales buscar.\n",
+      "benefits": [
+        "Fórmula hipoalergénica",
+        "Resultados comprobados",
+        "Apta para todo tipo de piel"
+      ],
+      "badges": [
+        "Nuevo Lanzamiento"
+      ],
+      "featured": false,
+      "stock": 50,
+      "rating": 5,
+      "reviewsCount": 1,
+      "sku": "LE -0550",
+      "motherDaySpecial": true
+    },
+    {
+      "id": "prod-1790225165769",
+      "name": "Acondicionador Botox",
+      "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
+      "brand": "Le Salon",
+      "order": 20,
       "category": "Capilar",
       "price": 35000,
       "originalPrice": 42000,
       "discountPercentage": 15,
-      "image": "/uploads/WhatsAppImage2026-09-23at1319014158jpeg-1790225198089-jh1pq.jpg",
+      "image": "/uploads/WhatsAppImage2026-09-23at13185614jpeg-1790709863615-fr4lk.jpg",
       "secondaryImages": [],
-      "description": "El efecto Botox en tu uso cotidiano mejora el cabello, tanto desde su raíz como en largos y puntas, ayuda a combatir el friz. Da un acabado más luminoso y vital.",
-      "howToUse": "Recomendado para usar todos los días",
+      "description": "El acondicionador de botox es un tratamiento sellador de alta gama diseñado para engrosar, suavizar y rejuvenecer el cabello opaco, poroso o debilitado. Su función principal es actuar como un \"borrador de imperfecciones\", cerrando la cutícula capilar para retener en el interior los activos rellenadores —como el ácido hialurónico, colágeno y vitaminas— aportados por el shampoo.\n",
+      "howToUse": "Para lograr un sellado perfecto y potenciar el efecto rejuvenecedor, sigue estos pasos:\n1. Elimina el exceso de agua: Tras aclarar por completo el shampoo de botox, escurre suavemente el cabello con las manos. Si está demasiado empapado, el acondicionador se resbalará y no penetrará en la fibra.\n2. Aplica de medios a puntas: Coloca una cantidad equivalente al tamaño de una moneda grande en tus manos y distribúyela de manera uniforme desde la mitad del largo hacia las puntas. Evita la raíz para no restar volumen ni engrasar el cuero cabelludo.\n3. Peina suavemente: Utiliza tus dedos o un peine de dientes anchos para distribuir bien el producto y deshacer cualquier nudo.\n4. Tiempo de pose: Deja actuar el acondicionador entre 3 y 5 minutos. Al ser una fórmula rica en aminoácidos y colágeno, requiere este tiempo para fijarse correctamente en las zonas dañadas.\n5. Enjuague estratégico: Retira el producto con abundante agua templada y finaliza con un chorro de agua fría para terminar de contraer la cutícula y potenciar el brillo máximo.\n",
       "benefits": [
         "Fórmula hipoalergénica",
         "Resultados comprobados",
@@ -579,6 +666,93 @@
       "rating": 5,
       "reviewsCount": 1,
       "sku": "LE -5769",
+      "motherDaySpecial": true
+    },
+    {
+      "id": "prod-1790708899468",
+      "name": "Shampoo Keratina ",
+      "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
+      "brand": "Le Salon",
+      "order": 21,
+      "category": "Capilar",
+      "price": 38000,
+      "originalPrice": 45000,
+      "discountPercentage": 15,
+      "image": "/uploads/WhatsAppImage2026-09-23at131929456jpeg-1790708939424-73ts0.jpg",
+      "secondaryImages": [],
+      "description": "Reparación y fortalecimiento: La keratina es una proteína natural que se pierde por el uso de planchitas, tintes y la contaminación. El shampoo ayuda a reponer esta proteína para hacer que el cabello sea más resistente a la rotura.",
+      "howToUse": "• Frecuencia: Puedes usarlo de 2 a 3 veces por semana. Si lo usas todos los días, podrías saturar el cabello de proteína y dejarlo rígido.\n• Complemento: Acompáñalo siempre con un acondicionador o máscara de la misma línea para sellar la hidratación.\n",
+      "benefits": [
+        "Fórmula hipoalergénica",
+        "Resultados comprobados",
+        "Apta para todo tipo de piel"
+      ],
+      "badges": [
+        "Nuevo Lanzamiento"
+      ],
+      "featured": false,
+      "stock": 50,
+      "rating": 5,
+      "reviewsCount": 1,
+      "sku": "LE-9468",
+      "motherDaySpecial": true
+    },
+    {
+      "id": "prod-1790709410602",
+      "name": "Acondicionador Keratina ",
+      "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
+      "brand": "Le Salon",
+      "order": 22,
+      "category": "Capilar",
+      "price": 32000,
+      "originalPrice": 40000,
+      "discountPercentage": 15,
+      "image": "/uploads/WhatsAppImage2026-09-23at131931132jpeg-1790709425901-anbpb.jpg",
+      "secondaryImages": [],
+      "description": "El acondicionador de keratina es un tratamiento de sellado que restaura la estructura capilar, elimina el frizz y sella la cutícula del cabello dañado o debilitado. Su función principal es complementar al shampoo reteniendo las proteínas de keratina dentro de la fibra capilar, lo que aporta una inyección de fuerza y elasticidad que previene el quiebre.",
+      "howToUse": "Para aprovechar al máximo sus propiedades reconstructoras, sigue estos pasos:\n1. Escurre el cabello: Tras enjuagar por completo el shampoo, retira el exceso de agua presionando suavemente con las manos. Si el cabello está empapado, el acondicionador resbalará y no penetrará.\n2. Aplica de medios a puntas: Distribuye una cantidad equivalente al tamaño de una moneda grande desde la mitad del cabello hacia abajo. Evita la raíz y el cuero cabelludo para no restar volumen ni generar grasitud.\n3. Desenreda con suavidad: Aprovecha que el producto está actuando para desenredar el cabello usando tus dedos o un peine de dientes anchos.\n4. Deja actuar: Permite que trabaje entre 2 y 3 minutos para que la proteína de keratina se fije en las zonas porosas.\n5. Enjuaga con agua templada a fría: Retira el producto con abundante agua. Un último chorro de agua fría potenciará el brillo y el efecto lacio o definido de la keratina.",
+      "benefits": [
+        "Fórmula hipoalergénica",
+        "Resultados comprobados",
+        "Apta para todo tipo de piel"
+      ],
+      "badges": [
+        "Nuevo Lanzamiento"
+      ],
+      "featured": false,
+      "stock": 50,
+      "rating": 5,
+      "reviewsCount": 1,
+      "sku": "LE -0602",
+      "motherDaySpecial": true
+    },
+    {
+      "id": "prod-1790709608401",
+      "name": "Combo Keratina",
+      "tagline": "Fórmula de alta eficacia desarrollada en laboratorio",
+      "brand": "Le Salon",
+      "order": 23,
+      "category": "Packs",
+      "price": 59000,
+      "originalPrice": 66000,
+      "discountPercentage": 15,
+      "image": "/uploads/WhatsAppImage2026-09-23at1319305641jpeg-1790709636079-dspzk.jpg",
+      "secondaryImages": [],
+      "description": "El combo de shampoo y acondicionador de keratina es un sistema de reconstrucción intensiva diseñado para reparar la estructura del cabello, eliminar el frizz y devolverle la fuerza a las melenas débiles, quebradizas o procesadas químicamente. Mientras el shampoo limpia y deposita las primeras partículas de proteína, el acondicionador sella la fibra para retener esos nutrientes y dejar el pelo completamente blindado.",
+      "howToUse": "Para lograr una restauración efectiva, debes aplicar el combo siguiendo estos pasos de forma secuencial:\n1. Paso 1: Lavado con el Shampoo: Aplica el shampoo sobre el cabello bien mojado con agua tibia. Masajea suavemente el cuero cabelludo con las yemas de los dedos. Deja que la espuma baje hacia las puntas sin frotarlas directamente y enjuaga con abundante agua.\n2. Paso 2: Retirar el exceso de agua: Escurre el cabello con las manos antes de pasar al siguiente paso. Si el pelo está demasiado empapado, el acondicionador se diluirá y perderá eficacia.\n3. Paso 3: Aplicación del Acondicionador: Coloca una cantidad moderada de producto de medios a puntas, asegurándote de no tocar la raíz para mantener el volumen natural del cabello.\n4. Paso 4: Desenredado y tiempo de pose: Peina suavemente con los dedos o con un peine de dientes anchos para distribuir el producto. Déjalo actuar entre 2 y 3 minutos para que la keratina se fije en la fibra capilar.\n5. Paso 5: Enjuague final: Retira por completo el producto con abundante agua. Terminar el enjuague con agua fría es clave, ya que ayuda a compactar la cutícula, potenciando el brillo y el control del frizz.\n",
+      "benefits": [
+        "Fórmula hipoalergénica",
+        "Resultados comprobados",
+        "Apta para todo tipo de piel"
+      ],
+      "badges": [
+        "Nuevo Lanzamiento"
+      ],
+      "featured": false,
+      "stock": 50,
+      "rating": 5,
+      "reviewsCount": 1,
+      "sku": "LE -8401",
       "motherDaySpecial": true
     }
   ],
@@ -628,7 +802,7 @@
   ],
   "cms": {
     "storeName": "ISAMER",
-    "storeTagline": "LAB",
+    "storeTagline": "Cosmética",
     "announcementBar": "💖 ¡ESPECIAL DÍA DE LA MADRE EN ISAMER! 3 y 6 CUOTAS + ENVÍOS A TODO EL PAÍS",
     "announcementActive": true,
     "enableMothersDay": true,
@@ -895,6 +1069,24 @@
     }
   ],
   "pixelLogs": [
+    {
+      "id": "pix-1790708817041",
+      "eventName": "PageView",
+      "timestamp": "2026-09-29T19:06:57.041Z",
+      "data": {
+        "url": "http://localhost:3000/",
+        "referrer": ""
+      }
+    },
+    {
+      "id": "pix-1790708572576",
+      "eventName": "PageView",
+      "timestamp": "2026-09-29T19:02:52.576Z",
+      "data": {
+        "url": "http://localhost:3000/",
+        "referrer": ""
+      }
+    },
     {
       "id": "pix-1790225336812",
       "eventName": "PageView",
@@ -2735,24 +2927,6 @@
       "id": "pix-1790099767566",
       "eventName": "PageView",
       "timestamp": "2026-09-22T17:56:07.566Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1790099765121",
-      "eventName": "PageView",
-      "timestamp": "2026-09-22T17:56:05.121Z",
-      "data": {
-        "url": "http://localhost:3000/",
-        "referrer": "http://localhost:3000/"
-      }
-    },
-    {
-      "id": "pix-1790099762945",
-      "eventName": "PageView",
-      "timestamp": "2026-09-22T17:56:02.945Z",
       "data": {
         "url": "http://localhost:3000/",
         "referrer": "http://localhost:3000/"

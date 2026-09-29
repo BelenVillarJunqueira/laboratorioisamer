@@ -47,7 +47,7 @@ export function formatDate(isoString: string): string {
 export function createWhatsAppOrderLink(phone: string, orderNumber: string, customerName: string, total: number): string {
   const cleanPhone = phone.replace(/\D/g, '');
   const message = encodeURIComponent(
-    `¡Hola ${customerName}! Te escribimos de ISAMER Lab Cosmética respecto a tu pedido #${orderNumber} por ${formatCurrency(total)}. `
+    `¡Hola ${customerName}! Te escribimos de ISAMER COSMÉTICA respecto a tu pedido #${orderNumber} por ${formatCurrency(total)}. `
   );
   return `https://wa.me/${cleanPhone}?text=${message}`;
 }

@@ -83,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {cms.storeName || 'ISAMER'}
               </span>
               <span className="text-[10px] sm:text-[12px] uppercase tracking-[0.3em] text-[#9E8B92] font-bold mt-1">
-                {cms.storeTagline || 'LAB'}
+                {cms.storeTagline || 'COSMÉTICA'}
               </span>
             </a>
           </div>

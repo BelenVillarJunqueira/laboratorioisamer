@@ -5,13 +5,9 @@ import { INITIAL_PRODUCTS, INITIAL_SLIDES, INITIAL_CMS, INITIAL_ORDERS } from '.
 export const api = {
   // Products
   async getProducts(): Promise<Product[]> {
-    try {
-      const res = await fetch('/api/products');
-      if (!res.ok) throw new Error('Network error');
-      return await res.json();
-    } catch {
-      return INITIAL_PRODUCTS;
-    }
+    const res = await fetch('/api/products');
+    if (!res.ok) throw new Error(`HTTP ${res.status}: Error al obtener productos`);
+    return await res.json();
   },
 
   async updateProduct(id: string, updates: Partial<Product>): Promise<Product> {
@@ -307,6 +303,25 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Error al sincronizar datos');
     }
+    return await res.json();
+  },
+
+  async getDbStatus(): Promise<{
+    isConnected: boolean;
+    type: 'mongodb' | 'postgres' | 'local_disk';
+    details: string;
+    databaseUrlSet: boolean;
+    providerName?: string;
+    productsCount?: number;
+  }> {
+    const res = await fetch('/api/db-status');
+    if (!res.ok) throw new Error('Error al obtener estado de base de datos');
+    return await res.json();
+  },
+
+  async syncDb(): Promise<any> {
+    const res = await fetch('/api/db-sync', { method: 'POST' });
+    if (!res.ok) throw new Error('Error al sincronizar con la base de datos cloud');
     return await res.json();
   }
 };

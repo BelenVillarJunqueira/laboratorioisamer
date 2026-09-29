@@ -23,12 +23,12 @@ export const Footer: React.FC<FooterProps> = ({ cms, onOpenTracking, onOpenAdmin
                 {cms.storeName || 'ISAMER'}
               </span>
               <span className="text-[11px] uppercase tracking-[0.35em] text-[#9E8B92] font-bold">
-                {cms.storeTagline || 'LAB'}
+                {cms.storeTagline || 'COSMÉTICA'}
               </span>
             </div>
             <p className="text-xs text-neutral-400 leading-relaxed">
               {cms.footerAbout ||
-                'ISAMER LAB - Laboratorio de alta cosmética y catálogo multimarca: H2Derm, SoftCare, Mimitos y Le Salon. Fórmulas dermatológicas desarrolladas con los más altos estándares de pureza y biotecnología.'}
+                'ISAMER COSMÉTICA - Alta cosmética y catálogo multimarca: H2Derm, SoftCare, Mimitos y Le Salon. Fórmulas dermatológicas desarrolladas con los más altos estándares de pureza y biotecnología.'}
             </p>
             <div className="flex items-center gap-2 pt-2">
               <span className="text-[10px] bg-pink-900/60 text-pink-300 font-bold px-2.5 py-1 rounded-full border border-pink-700/50">

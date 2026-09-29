@@ -6,6 +6,14 @@ import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { INITIAL_PRODUCTS, INITIAL_SLIDES, INITIAL_CMS, INITIAL_ORDERS } from './src/data/initialData';
 import { Product, CarouselSlide, StoreCMS, Order, PixelEventLog, PushNotification } from './src/types';
+import {
+  initDb,
+  loadDbState,
+  saveDbState,
+  saveDbImage,
+  getDbImage,
+  getDbStatus
+} from './server/db';
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -21,14 +29,41 @@ const DATA_BACKUP_FILE = path.join(DATA_DIR, 'store.backup.json');
 const DATA_LAST_BACKUP_FILE = path.join(DATA_DIR, 'store.backup.last.json');
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
 
-// Ensure uploads directory exists and is served statically
+// Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
+
+// Self-healing uploads serving: checks disk, and if Render container restarted, recovers from PostgreSQL!
+app.get('/uploads/:filename', async (req, res, next) => {
+  try {
+    const { filename } = req.params;
+    const safeFilename = path.basename(filename);
+    const localPath = path.join(UPLOADS_DIR, safeFilename);
+
+    if (fs.existsSync(localPath)) {
+      return res.sendFile(localPath);
+    }
+
+    // Disk was wiped by Render restart: fetch from persistent database
+    const dbImg = await getDbImage(safeFilename);
+    if (dbImg && dbImg.data) {
+      const buffer = Buffer.from(dbImg.data, 'base64');
+      try {
+        fs.writeFileSync(localPath, buffer);
+      } catch {}
+      res.setHeader('Content-Type', dbImg.mime_type || 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      return res.send(buffer);
+    }
+  } catch (err) {
+    console.error('Error recovering image from DB:', err);
+  }
+  next();
+});
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// Helper: Extract huge base64 images into actual files in /public/uploads/
-// This avoids 10MB+ strings bloating store.json and crashing browser localStorage!
+// Helper: Extract huge base64 images into physical files and PostgreSQL
 function sanitizeAndExtractBase64Image(dataUri: string, prefix = 'img'): string {
   if (!dataUri || typeof dataUri !== 'string') return dataUri;
   if (!dataUri.startsWith('data:image/')) return dataUri;
@@ -44,17 +79,50 @@ function sanitizeAndExtractBase64Image(dataUri: string, prefix = 'img'): string 
     if (ext === 'jpeg') ext = 'jpg';
     if (ext === 'svg+xml') ext = 'svg';
 
+    const mimeType = `image/${match[1]}`;
     const base64Data = match[2];
     const buffer = Buffer.from(base64Data, 'base64');
     const filename = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${ext}`;
     const filePath = path.join(UPLOADS_DIR, filename);
 
     fs.writeFileSync(filePath, buffer);
+
+    // Save to database table/collection store_images asynchronously
+    saveDbImage(filename, base64Data, mimeType).catch((err: any) => {
+      console.warn('[DB IMAGE SAVE ERROR]', err.message);
+    });
+
     return `/uploads/${filename}`;
   } catch (err) {
     console.error('Error extracting base64 image to disk:', err);
     return dataUri;
   }
+}
+
+// Synchronize any local physical files in public/uploads to MongoDB/PostgreSQL
+async function syncLocalImagesToDb(): Promise<number> {
+  let count = 0;
+  try {
+    if (!fs.existsSync(UPLOADS_DIR)) return 0;
+    const files = fs.readdirSync(UPLOADS_DIR);
+    for (const file of files) {
+      try {
+        const filePath = path.join(UPLOADS_DIR, file);
+        const stat = fs.statSync(filePath);
+        if (stat.isFile() && stat.size > 0 && stat.size < 15 * 1024 * 1024) {
+          const existing = await getDbImage(file);
+          if (!existing) {
+            const buffer = fs.readFileSync(filePath);
+            const ext = path.extname(file).replace('.', '').toLowerCase();
+            const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'svg' ? 'image/svg+xml' : 'image/jpeg';
+            await saveDbImage(file, buffer.toString('base64'), mimeType);
+            count++;
+          }
+        }
+      } catch {}
+    }
+  } catch {}
+  return count;
 }
 
 function cleanProductBase64Images(product: Product): Product {
@@ -125,14 +193,14 @@ function loadData(): StoredData {
           const cleaned = cleanProductBase64Images(p);
           return {
             ...cleaned,
-            brand: (cleaned.brand && cleaned.brand !== 'ISAMER' && cleaned.brand !== 'ISAMER') ? cleaned.brand : 'H2Derm',
+            brand: (cleaned.brand && cleaned.brand !== 'LUMÉA' && cleaned.brand !== 'ISAMER') ? cleaned.brand : 'H2Derm',
             order: typeof cleaned.order === 'number' ? cleaned.order : (idx + 1)
           };
         });
       } else {
         storedProducts = INITIAL_PRODUCTS.map((p: Product, idx: number) => ({
           ...p,
-          brand: (p.brand && p.brand !== 'ISAMER' && p.brand !== 'ISAMER') ? p.brand : 'H2Derm',
+          brand: (p.brand && p.brand !== 'LUMÉA' && p.brand !== 'ISAMER') ? p.brand : 'H2Derm',
           order: typeof p.order === 'number' ? p.order : (idx + 1)
         }));
       }
@@ -258,20 +326,25 @@ function saveData(data: StoredData) {
       products: sanitizedProducts
     };
 
-    // 2. Keep historical backup before overwriting
+    // 2. Persist to PostgreSQL database (survives Render reboots, deployments, and sleep cycles)
+    saveDbState(safeData).catch((err: any) => {
+      console.warn('[DB SAVE STATE WARNING]', err.message);
+    });
+
+    // 3. Keep historical backup before overwriting
     if (fs.existsSync(DATA_FILE)) {
       try {
         fs.copyFileSync(DATA_FILE, DATA_LAST_BACKUP_FILE);
       } catch {}
     }
 
-    // 3. Atomic write using temporary file to prevent corruption if process is interrupted
+    // 4. Atomic write using temporary file to prevent corruption if process is interrupted
     const jsonString = JSON.stringify(safeData, null, 2);
     const tmpFile = `${DATA_FILE}.tmp.${Date.now()}`;
     fs.writeFileSync(tmpFile, jsonString, 'utf-8');
     fs.renameSync(tmpFile, DATA_FILE);
 
-    // 4. Update long-term backup
+    // 5. Update long-term backup
     if (safeData.products && safeData.products.length > 0) {
       try {
         fs.writeFileSync(DATA_BACKUP_FILE, jsonString, 'utf-8');
@@ -303,7 +376,7 @@ app.put('/api/products', (req, res) => {
   if (Array.isArray(req.body)) {
     storeState.products = req.body.map((p: any, idx: number) => ({
       ...p,
-      brand: (p.brand && p.brand !== 'ISAMER') ? p.brand : 'H2Derm',
+      brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
       order: typeof p.order === 'number' ? p.order : (idx + 1)
     }));
     saveData(storeState);
@@ -318,7 +391,7 @@ app.put('/api/products/reorder', (req, res) => {
   if (Array.isArray(products)) {
     storeState.products = products.map((p: any, idx: number) => ({
       ...p,
-      brand: (p.brand && p.brand !== 'ISAMER') ? p.brand : 'H2Derm',
+      brand: (p.brand && p.brand !== 'LUMÉA') ? p.brand : 'H2Derm',
       order: idx + 1
     }));
     saveData(storeState);
@@ -367,9 +440,9 @@ app.put('/api/products/:id', (req, res) => {
       );
     }
 
-    const brandToUse = (updatedProduct.brand && updatedProduct.brand !== 'ISAMER')
+    const brandToUse = (updatedProduct.brand && updatedProduct.brand !== 'LUMÉA')
       ? updatedProduct.brand
-      : (index !== -1 && storeState.products[index].brand !== 'ISAMER' ? storeState.products[index].brand : 'H2Derm');
+      : (index !== -1 && storeState.products[index].brand !== 'LUMÉA' ? storeState.products[index].brand : 'H2Derm');
 
     if (index !== -1) {
       // Update existing product
@@ -422,7 +495,7 @@ app.put('/api/products/:id', (req, res) => {
 
 app.post('/api/products', (req, res) => {
   try {
-    const brandToUse = (req.body.brand && req.body.brand !== 'ISAMER') ? req.body.brand : 'H2Derm';
+    const brandToUse = (req.body.brand && req.body.brand !== 'LUMÉA') ? req.body.brand : 'H2Derm';
     const prodId = req.body.id || 'prod-' + Date.now();
 
     // Check if ID already exists, if so update it
@@ -604,7 +677,7 @@ app.post('/api/admin/restore', (req, res) => {
         price: typeof sanitized.price === 'number' ? sanitized.price : (Number(sanitized.price) || 0),
         originalPrice: typeof sanitized.originalPrice === 'number' ? sanitized.originalPrice : (Number(sanitized.originalPrice) || sanitized.price || 0),
         category: sanitized.category || 'Cremas',
-        brand: (sanitized.brand && sanitized.brand !== 'ISAMER' && sanitized.brand !== 'ISAMER') ? sanitized.brand : (sanitized.brand || 'H2Derm'),
+        brand: (sanitized.brand && sanitized.brand !== 'LUMÉA' && sanitized.brand !== 'ISAMER') ? sanitized.brand : (sanitized.brand || 'H2Derm'),
         stock: typeof sanitized.stock === 'number' ? sanitized.stock : (Number(sanitized.stock) || 50),
         order: typeof sanitized.order === 'number' ? sanitized.order : (idx + 1)
       };
@@ -661,7 +734,7 @@ app.post('/api/sync-full', (req, res) => {
     if (Array.isArray(products) && products.length > 0) {
       storeState.products = products.map((p: any, idx: number) => ({
         ...p,
-        brand: (p.brand && p.brand !== 'ISAMER' && p.brand !== 'ISAMER') ? p.brand : (p.brand || 'H2Derm'),
+        brand: (p.brand && p.brand !== 'LUMÉA' && p.brand !== 'ISAMER') ? p.brand : (p.brand || 'H2Derm'),
         order: typeof p.order === 'number' ? p.order : (idx + 1)
       }));
     }
@@ -811,55 +884,75 @@ app.post('/api/mercadopago/create-preference', async (req, res) => {
 
     // If an Access Token is configured, call Mercado Pago official API
     if (accessToken && accessToken.length > 10 && !accessToken.includes('00000000')) {
-      const baseUrl = req.headers.origin || `http://localhost:${PORT}`;
+      // Determine if request is coming from a genuine public HTTPS host
+      const rawOrigin = req.headers.origin || (req.headers.host ? `https://${req.headers.host}` : '');
+      const isLocal = !rawOrigin || rawOrigin.includes('localhost') || rawOrigin.includes('127.0.0.1') || rawOrigin.startsWith('http://');
+      
+      const publicBaseUrl = (process.env.APP_URL && process.env.APP_URL.startsWith('https://'))
+        ? process.env.APP_URL
+        : (!isLocal && rawOrigin.startsWith('https://') ? rawOrigin : null);
 
-      // Build MP preference payload
+      // Build MP preference items (ensure unit_price is positive number, pictures are absolute URLs)
       const mpItems = Array.isArray(items) && items.length > 0
-        ? items.map(item => ({
-            id: String(item.productId || item.id || 'item-1'),
-            title: String(item.productName || item.title || 'Producto ISAMER LAB'),
-            description: item.shade ? `Tono: ${item.shade}` : 'Cosmética dermatológica',
-            picture_url: item.productImage || undefined,
-            quantity: Number(item.quantity) || 1,
-            currency_id: 'ARS',
-            unit_price: Number(item.unitPrice || (total / (items.length || 1)))
-          }))
+        ? items.map(item => {
+            const pic = item.productImage && item.productImage.startsWith('http') ? item.productImage : undefined;
+            const price = Math.max(1, Math.round((Number(item.unitPrice) || (total / (items.length || 1))) * 100) / 100);
+            return {
+              id: String(item.productId || item.id || 'item-1'),
+              title: String(item.productName || item.title || 'Producto Dermocosmético ISAMER COSMÉTICA').slice(0, 250),
+              description: item.shade ? `Tono: ${item.shade}` : 'Cosmética dermatológica',
+              picture_url: pic,
+              quantity: Math.max(1, Number(item.quantity) || 1),
+              currency_id: 'ARS',
+              unit_price: price
+            };
+          })
         : [{
             id: 'order-' + (orderNumber || Date.now()),
             title: `Pedido ${orderNumber || 'LUM-ONLINE'}`,
             quantity: 1,
             currency_id: 'ARS',
-            unit_price: Number(total)
+            unit_price: Math.max(1, Math.round(Number(total) * 100) / 100)
           }];
 
-      const mpPayload = {
+      const mpPayload: any = {
         items: mpItems,
-        payer: payer ? {
-          name: payer.name || undefined,
-          email: payer.email || undefined,
-          phone: payer.phone ? { number: payer.phone } : undefined,
-          identification: payer.dni ? { type: 'DNI', number: payer.dni } : undefined,
-          address: payer.address ? {
-            street_name: payer.address.street || '',
-            street_number: Number(payer.address.number) || 0,
-            zip_code: payer.address.postalCode || ''
-          } : undefined
-        } : undefined,
-        back_urls: {
-          success: `${baseUrl}/?payment_status=approved&order=${orderNumber || ''}`,
-          pending: `${baseUrl}/?payment_status=pending&order=${orderNumber || ''}`,
-          failure: `${baseUrl}/?payment_status=failure&order=${orderNumber || ''}`
-        },
-        auto_return: 'approved',
         external_reference: orderNumber || `ORD-${Date.now()}`,
-        statement_descriptor: 'ISAMER LAB',
+        statement_descriptor: 'ISAMER COSMÉTICA',
         payment_methods: {
-          installments: 6 // Allow up to 6 installments with card/MP interest
+          installments: 6
         }
       };
 
+      // Add payer if valid
+      if (payer && payer.email && payer.email.includes('@')) {
+        mpPayload.payer = {
+          name: payer.name ? String(payer.name).trim() : undefined,
+          email: String(payer.email).trim(),
+          phone: payer.phone ? { number: String(payer.phone).replace(/\D/g, '') } : undefined,
+          identification: payer.dni ? { type: 'DNI', number: String(payer.dni).replace(/\D/g, '') } : undefined,
+          address: payer.address?.street ? {
+            street_name: String(payer.address.street).trim(),
+            street_number: Number(payer.address.number) || 0,
+            zip_code: String(payer.address.postalCode || '').trim()
+          } : undefined
+        };
+      }
+
+      // ONLY include back_urls and auto_return when on a public HTTPS domain.
+      // Mercado Pago strictly forbids 'localhost' or '127.0.0.1' and throws:
+      // "auto_return invalid. back_url.success must be defined"
+      if (publicBaseUrl) {
+        mpPayload.back_urls = {
+          success: `${publicBaseUrl}/?payment_status=approved&order=${orderNumber || ''}`,
+          pending: `${publicBaseUrl}/?payment_status=pending&order=${orderNumber || ''}`,
+          failure: `${publicBaseUrl}/?payment_status=failure&order=${orderNumber || ''}`
+        };
+        mpPayload.auto_return = 'approved';
+      }
+
       try {
-        const mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
+        let mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -867,6 +960,23 @@ app.post('/api/mercadopago/create-preference', async (req, res) => {
           },
           body: JSON.stringify(mpPayload)
         });
+
+        // Fail-safe automatic recovery: if Mercado Pago rejects back_urls or auto_return, retry immediately without them
+        if (!mpRes.ok && (mpPayload.auto_return || mpPayload.back_urls)) {
+          const firstErr = await mpRes.text();
+          console.warn('[Mercado Pago API] First attempt with back_urls failed (', mpRes.status, firstErr, '), retrying without auto_return/back_urls...');
+          delete mpPayload.auto_return;
+          delete mpPayload.back_urls;
+
+          mpRes = await fetch('https://api.mercadopago.com/checkout/preferences', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify(mpPayload)
+          });
+        }
 
         if (mpRes.ok) {
           const mpData = await mpRes.json();
@@ -884,15 +994,14 @@ app.post('/api/mercadopago/create-preference', async (req, res) => {
           });
         } else {
           const errBody = await mpRes.text();
-          console.warn('Mercado Pago API error response:', mpRes.status, errBody);
-          // Fall back to generated link so flow is never blocked
+          console.warn('[Mercado Pago API error response]:', mpRes.status, errBody);
         }
       } catch (mpFetchErr) {
         console.error('Mercado Pago API network call failed:', mpFetchErr);
       }
     }
 
-    // Direct checkout link for seamless redirection
+    // Direct checkout link for seamless redirection fallback
     const prefId = 'MP-' + Math.random().toString(36).substring(2, 9).toUpperCase();
     const fallbackInitPoint = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${prefId}`;
 
@@ -926,7 +1035,7 @@ app.post('/api/mercadopago/process-payment', (req, res) => {
     transaction_amount,
     payment_method_id,
     installments: installments || 1,
-    statement_descriptor: 'ISAMER LAB'
+    statement_descriptor: 'ISAMER COSMÉTICA'
   });
 });
 
@@ -993,7 +1102,7 @@ app.post('/api/push/send', (req, res) => {
   const { title, body, icon, url } = req.body;
   const notification: PushNotification = {
     id: 'push-' + Date.now(),
-    title: title || 'Novedad en ISAMER LAB',
+    title: title || 'Novedad en ISAMER COSMÉTICA',
     body: body || 'Descubrí nuevas ofertas exclusivas.',
     icon: icon || 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=100&q=80',
     url: url || '/',
@@ -1045,8 +1154,69 @@ app.get('/api/analytics', (req, res) => {
   });
 });
 
+// Database Status & Sync API
+app.get('/api/db-status', (req, res) => {
+  const status = getDbStatus();
+  res.json({
+    ...status,
+    productsCount: storeState.products.length,
+    slidesCount: storeState.slides.length,
+    ordersCount: storeState.orders.length
+  });
+});
+
+app.post('/api/db-sync', async (req, res) => {
+  try {
+    const saved = await saveDbState(storeState);
+    const imagesSynced = await syncLocalImagesToDb();
+    saveData(storeState);
+    const status = getDbStatus();
+    res.json({
+      success: true,
+      dbSaved: saved,
+      imagesSynced,
+      status,
+      productsCount: storeState.products.length
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Start server with Vite middleware in dev or static files in production
 async function startServer() {
+  // Connect to persistent MongoDB / PostgreSQL database if configured
+  try {
+    const isConnected = await initDb();
+    if (isConnected) {
+      const status = getDbStatus();
+      const dbState = await loadDbState();
+      if (dbState && Array.isArray(dbState.products) && dbState.products.length > 0) {
+        console.log(`[DATABASE] Catálogo cargado exitosamente de ${status.providerName} (${dbState.products.length} productos).`);
+        storeState = {
+          ...storeState,
+          ...dbState,
+          products: dbState.products.map((p: any, idx: number) => ({
+            ...p,
+            order: typeof p.order === 'number' ? p.order : (idx + 1)
+          }))
+        };
+      } else {
+        console.log(`[DATABASE] Base de datos (${status.providerName}) vacía o inicial. Migrando ${storeState.products.length} productos actuales...`);
+        await saveDbState(storeState);
+        console.log(`✅ [DATABASE] ¡Todos los productos y configuraciones migrados a ${status.providerName} con éxito!`);
+      }
+      // Sync local uploaded images to DB asynchronously
+      syncLocalImagesToDb().then(count => {
+        if (count > 0) {
+          console.log(`[DATABASE] ${count} imágenes de disco sincronizadas a ${status.providerName}.`);
+        }
+      }).catch(() => {});
+    }
+  } catch (dbErr: any) {
+    console.warn('[DATABASE] No se pudo inicializar la base de datos cloud:', dbErr.message);
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: {

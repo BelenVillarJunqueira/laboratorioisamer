@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ISAMER Lab-cosmetica-profesional
+    name: Isa-cosmetica-facial
     env: node
     plan: free
     buildCommand: npm install && npm run build
@@ -8,6 +8,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: MONGODB_URI
+        sync: false
       - key: MERCADO_PAGO_PUBLIC_KEY
         sync: false
       - key: MERCADO_PAGO_ACCESS_TOKEN
