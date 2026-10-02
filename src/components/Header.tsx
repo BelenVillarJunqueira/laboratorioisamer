@@ -374,7 +374,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="text-base text-[#E6007E] font-semibold py-2 border-b border-gray-100 flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Especial Día de la Madre 2025</span>
+              <span>Especial Día de la Madre 2026</span>
             </a>
             <button
               onClick={() => {
