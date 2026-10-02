@@ -84,16 +84,24 @@ export const Footer: React.FC<FooterProps> = ({ cms, onOpenTracking, onOpenAdmin
                   className="hover:text-emerald-400 transition-colors flex items-center gap-2"
                 >
                   <MessageCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>WhatsApp: +{cms.whatsappNumber}</span>
+                  <span>WhatsApp</span>
                 </a>
               </li>
               <li className="flex items-center gap-2">
                 <Instagram className="w-4 h-4 text-pink-400 shrink-0" />
-                <span>{cms.instagramHandle || '@isamer.lab'}</span>
+                <a
+                  href={`https://instagram.com/${cms.instagramHandle.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-pink-400 transition-colors"
+                >
+                  <span>{cms.instagramHandle || '@isamercosmetica'}</span>
+                </a>
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-neutral-400 shrink-0" />
-                <span>{cms.emailContact || 'contacto@isamerlab.com'}</span>
+                <a href="mailto:grupoisamer@gmail.com"></a>
+                <span>{cms.emailContact || 'grupoisamer@gmail.com'}</span>
               </li>
               <li className="text-[11px] text-neutral-500 pt-1">
                 Lunes a Viernes de 9:00 a 18:00 hs.

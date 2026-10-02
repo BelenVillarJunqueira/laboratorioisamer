@@ -2691,7 +2691,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             } as any
                           })
                         }
-                        placeholder="¡Hola! Quiero información para crear mi propia marca de productos con el laboratorio."
+                        placeholder="¡Hola! Quiero información para crear mi propia marca de productos ."
                         className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-2.5 text-white outline-none focus:border-[#E6007E]"
                       />
                     </div>

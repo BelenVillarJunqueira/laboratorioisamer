@@ -132,7 +132,7 @@ export const CreateYourBrandSection: React.FC<CreateYourBrandSectionProps> = ({ 
                             <div className="relative rounded-3xl overflow-hidden border border-neutral-700 bg-neutral-800 aspect-4/3 sm:aspect-square shadow-2xl">
                                 <img
                                     src={brandData.image || 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=1200&q=85'}
-                                    alt="Laboratorio cosmético creando marcas"
+                                    alt="Productos cosméticos calidad de laboratorio"
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                 />
                                 <div className="absolute inset-0 bg-linear-to-t from-neutral-950 via-neutral-950/20 to-transparent" />
