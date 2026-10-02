@@ -78,7 +78,7 @@ export const MothersDayBanner: React.FC<MothersDayBannerProps> = ({ cms, onExplo
                   />
                   <div className="absolute bottom-3 left-3 right-3 bg-black/60 backdrop-blur-md rounded-xl p-3 text-center border border-white/15">
                     <span className="text-xs font-bold text-amber-300 block">✦ Pack de lujo Listo Para Regalar ✦</span>
-                    <span className="text-[11px] text-neutral-300">Crema Hidratante + Serum Liposomado + Contorno + Gel Limpiador + Agua Micelar</span>
+                    <span className="text-[11px] text-neutral-300">Crema exfoliante + Crema Restructurante con aminoácidos de colágeno y elastina + Crema Bi-Fase Hidro nutritiva con pepino jojoba y caléndula + Serum Anitiage de Rosa Mosquéta</span>
                   </div>
                 </div>
               </div>
